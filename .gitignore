@@ -1,0 +1,10 @@
+**/build
+**/*.o
+**/result
+**/~*
+**/#*
+**/.#*
+**/.cache
+**/.vscode
+tmp
+.direnv
