@@ -1,0 +1,8 @@
+* Raytracing in X week(s)
+This project is how I am learning C++, so if you are wondering why I have weird and inconsistent program architecture (and shitty code in general), that's probably why. The general program structure is mostly taken from TheCherno/Walnut, with some code taken from a lot of different places, and some I even wrote myself.
+
+This branch has nothing to do with raytracing, actually, and is just me going through LearnOpenGL exercises (and some exercises from videos I found interesting).
+This is set up to be built for Linux. There is some code to account for Windows, but I have never tried building for Windows and CMakeLists.txt does not account for Windows.
+This may or may not change as I continue working on this.
+
+Have fun looking around, if its possible.

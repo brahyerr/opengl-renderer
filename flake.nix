@@ -39,6 +39,8 @@
             xorg.libXrandr
             pkg-config
             SDL2
+            glew
+            libGLU
             # glfw
             freetype
             shaderc             # GLSL to SPIRV compiler - glslc
