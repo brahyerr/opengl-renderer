@@ -22,7 +22,7 @@ namespace RT {
 	
 	struct Image {
 		int width, height, nrChannels;
-		unsigned int texture;
+		std::vector<unsigned int> texture;
 		unsigned char* data;
 	};
 
@@ -42,7 +42,8 @@ namespace RT {
 		float GetTime();
 
                 // void Render();
-		void GenTexture(Image* image, std::string path);
+		void GenCircle(float radius, int vertCount, std::vector<float>* vertices);
+		void GenTexture(Image* image, std::string path, int index);
 		GLuint CreateShaderProgram(const char* vertex_file_path, const char* fragment_file_path);
                 // GLuint CreateShaderProgram(const char* vertex_file_path);
 
@@ -53,12 +54,12 @@ namespace RT {
 		// SDL_Renderer* m_Renderer = nullptr;
                 SDL_GLContext m_glContext = NULL;
 
-		struct Image image;
+		// Most of these fields should be moved to different classes
+                struct Image image;
                 GLuint m_ShaderProgram;
-		std::vector<GLuint> VAO;
-		std::vector<GLuint> VBO;
-		std::vector<GLuint> EAB;  // P sure this isn't needed for raytracing
-		// std::vector<GLuint> UVO;  // should this be a float?
+                std::vector<float> circle;
+		std::vector<GLuint> VAO, VBO, EAB;
+		// std::vector<GLuint> UVO;
 
 		bool m_Running = false;
 

@@ -1,10 +1,12 @@
 #include <GL/glew.h>
 #include <SDL_keycode.h>
 #include <SDL_opengl.h>
+#include <SDL_shape.h>
 #include <SDL_video.h>
 #include <cmath>
 #include <cstddef>
 #include <ctime>
+#include <glm/fwd.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -26,19 +28,25 @@
 static RT::Application *s_Instance = nullptr;
 static RT::GUI *Gui = nullptr;
 
-const float vertices[] = {
-	
-	// Viewport - vertices and UV
-	0.8f, 1.0f, 0.0f,      1.0f, 1.0f,    // top right
-	0.8f, -1.0f, 0.0f,     1.0f, 0.0f,    // bot right
-	-0.8f, -1.0f, 0.0f, 0.0f, 0.0f,  // bot left
-	-0.8f, 1.0f, 0.0f,  0.0f, 1.0f   // top left
+const std::array<float, 12> vertices = {
+    // Viewport - vertices
+    0.8f,  0.8f,  0.0f,
+    0.8f,  -0.8f, 0.0f,
+    -0.8f, -0.8f, 0.0f,
+    -0.8f, 0.8f,  0.0f
 };
 
 
-const GLuint indices[] = {
-	0, 1, 3,
-	1, 2, 3
+const std::array<float, 8> uv = {
+    1.0f, 1.0f,
+    1.0f, 0.0f,
+    0.0f, 0.0f,
+    0.0f, 1.0f
+};
+
+const std::vector<GLuint> indices = {
+	0, 1, 2,
+	2, 3, 0
 };
 
 namespace RT {
@@ -144,16 +152,21 @@ namespace RT {
 			// }
 		}
 		SDL_GL_MakeCurrent(m_WindowHandle, m_glContext);
-		
+
+                // Generate opengl shader program
+		GenCircle(0.5f, 12, &circle);
+
                 glViewport(0, 0, m_Specification.Width, m_Specification.Height);
-                glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+                glClearColor(0.02f, 0.01f, 0.04f, 1.0f);
                 glClear(GL_COLOR_BUFFER_BIT);
 		#ifdef defined(WL_DIST) && defined(WL_PLATFORM_WINDOWS)
 		GenTexture(&image, "assets\\textures\\16xsi.png");
 		m_ShaderProgram = CreateShaderProgram("shaders\\shader.vert", "shaders\\shader.frag");
 		#else
-		GenTexture(&image, "assets/textures/marlboro2.jpg");
-		// GenTexture(&image, "assets/textures/set-of-16-flat-business-icons-vector-8001733.jpg");
+		GenTexture(&image, "assets/textures/marlboro2.jpg", 0);
+		GenTexture(&image, "assets/textures/16xsi.png", 1);
+		// GenTexture(&image, "assets/textures/awesomeface.png", 1);
+		// GenTexture(&image, "assets/textures/set-of-16-flat-business-icons-vector-8001733.jpg", 1);
 		m_ShaderProgram = CreateShaderProgram("shaders/shader.vert", "shaders/shader.frag");
 		#endif
 		glUseProgram(m_ShaderProgram);
@@ -179,8 +192,11 @@ namespace RT {
         }
 
         void Application::Run() {
+		// TODO: Split gl function calls into proper classes
 		m_Running = true;
                 glUseProgram(m_ShaderProgram);
+	        glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex"), 0);
+	        glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex2"), 1);
                 while (m_Running) {
 			PollEvent();
 
@@ -190,8 +206,13 @@ namespace RT {
 			float gl_time = glGetUniformLocation(m_ShaderProgram, "u_time");
 			glUniform1f(gl_time, time);
 
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, image.texture[0]);
+			glActiveTexture(GL_TEXTURE1);
+                        glBindTexture(GL_TEXTURE_2D, image.texture[1]);
+
+			glUseProgram(m_ShaderProgram);
 			glBindVertexArray(VAO[0]);
-			glBindTexture(GL_TEXTURE_2D, image.texture);
 
 			// glEnable(GL_DEBUG_OUTPUT);
                         // glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -230,17 +251,20 @@ namespace RT {
 		return (float) elapsed.count(); // seconds
         }
 
-        void Application::GenTexture(Image* image, std::string path) {
+        void Application::GenTexture(Image* image, std::string path, int index) {
 		stbi_set_flip_vertically_on_load(true);  // must flip since images usually have y = 0.0 on the top, while openGL has it on the bottom
+		image->texture.resize(image->texture.size() + 1);
 		image->data = stbi_load(&path[0], &(image->width), &(image->height), &(image->nrChannels), 0);
-                glGenTextures(1, &image->texture);
-                glBindTexture(GL_TEXTURE_2D, image->texture);
+		
+		// consider using stbi_load(FileSystem::getPath("resources/textures/awesomeface.png").c_str(), &width, &height, &nrChannels, 0);
+                glGenTextures(1, &image->texture[index]);
+		glBindTexture(GL_TEXTURE_2D, image->texture[index]);
 		
 		// set the texture wrapping/filtering options (on the currently bound texture object)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		
 		if (image->data) {
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image->width, image->height, 0, GL_RGB, GL_UNSIGNED_BYTE, image->data);
@@ -339,28 +363,32 @@ namespace RT {
 
                 // LearnOpenGL Stuff below
 
-		VAO.resize(1); VBO.resize(1);
+		VAO.resize(1); VBO.resize(2);
 		glGenVertexArrays(VAO.size(), VAO.data());
                 glGenBuffers(VBO.size(), VBO.data());
 		
                 glBindVertexArray(VAO[0]);
                 glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(0 * (sizeof(float))));
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices.data(), GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(0 * (sizeof(float))));
                 glEnableVertexAttribArray(0);
 
 		// Color attribute
 		// glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * (sizeof(float))));
                 // glEnableVertexAttribArray(1);
 		
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * (sizeof(float))));
+		// glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * (sizeof(float))));
+		// glEnableVertexAttribArray(2);
+                glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(uv), uv.data(), GL_STATIC_DRAW);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
 		glEnableVertexAttribArray(2);
 
                 // Element array buffer - This is bound automatically to the current VAO, meaning a VAO must be currently bound first
 		EAB.resize(1);
                 glGenBuffers(EAB.size(), EAB.data());
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EAB[0]);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices.data(), GL_STATIC_DRAW);
 
 		//                     Loc Size  Type    Normalize      Stride        Pos offset
 		// glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
@@ -368,4 +396,18 @@ namespace RT {
                 return ProgramID;
 	}
 
+        void Application::GenCircle(float radius, int vertCount, std::vector<float>* vertices) {
+		float angle = 360.0f / vertCount;
+                // int tri_count = vertCount - 2;
+                for (int i = 0; i < vertCount; i++) {
+			float theta = i * angle;
+			float theta_1 = (i - 1) * angle;
+
+			if (i + 1 % 3 == 0) {
+				vertices->push_back(radius * cos(glm::radians(theta)));
+				vertices->push_back(radius * sin(glm::radians(theta_1)));
+				vertices->push_back(0);
+			}
+		}
+	}
 }
