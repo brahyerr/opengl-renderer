@@ -12,5 +12,6 @@ void main()
 	gl_Position = vec4(vert, 1.0);
 	// gl_Position.xyz += 0.25 * sin(u_time + vec3(0.0, 1.2, 1.0));
 	// gl_Position.z += 0.25 * sin(u_time);
+	// v_uv = vert.xy;
 	v_uv = vec2(uv.s, uv.t);
 }

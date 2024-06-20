@@ -1,9 +1,11 @@
 #include <chrono>
+#include <glm/fwd.hpp>
 #include <stdlib.h>
 /* #include <vector> */
 /* #include <memory> */
 #include <string>
 #include <functional>
+#include <glm/glm.hpp>
 #include <SDL.h>
 #include <SDL_events.h>
 #include <SDL_keycode.h>
@@ -42,7 +44,7 @@ namespace RT {
 		float GetTime();
 
                 // void Render();
-		void GenCircle(float radius, int vertCount, std::vector<float>* vertices);
+		void GenCircle(float radius, int vertCount, std::vector<glm::vec3>* vertices, std::vector<glm::vec2>* uv);
 		void GenTexture(Image* image, std::string path, int index);
 		GLuint CreateShaderProgram(const char* vertex_file_path, const char* fragment_file_path);
                 // GLuint CreateShaderProgram(const char* vertex_file_path);
@@ -57,8 +59,9 @@ namespace RT {
 		// Most of these fields should be moved to different classes
                 struct Image image;
                 GLuint m_ShaderProgram;
-                std::vector<float> circle;
-		std::vector<GLuint> VAO, VBO, EAB;
+                std::vector<glm::vec3> vertices;
+		std::vector<glm::vec2> uv;
+		std::vector<GLuint> VAO, VBO, EAB, indices;
 		// std::vector<GLuint> UVO;
 
 		bool m_Running = false;

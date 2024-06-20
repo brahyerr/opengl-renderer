@@ -6,8 +6,10 @@
 #include <cmath>
 #include <cstddef>
 #include <ctime>
+#include <glm/ext/scalar_constants.hpp>
 #include <glm/fwd.hpp>
-#include <glm/glm.hpp>
+// #include <glm/glm.hpp>
+#include <glm/geometric.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <string>
@@ -28,26 +30,18 @@
 static RT::Application *s_Instance = nullptr;
 static RT::GUI *Gui = nullptr;
 
-const std::array<float, 12> vertices = {
-    // Viewport - vertices
-    0.8f,  0.8f,  0.0f,
-    0.8f,  -0.8f, 0.0f,
-    -0.8f, -0.8f, 0.0f,
-    -0.8f, 0.8f,  0.0f
-};
+// const std::array<float, 12> vertices = {
+//     // Viewport - vertices
+//     0.8f,  0.8f,  0.0f,
+//     0.8f,  -0.8f, 0.0f,
+//     -0.8f, -0.8f, 0.0f,
+//     -0.8f, 0.8f,  0.0f
+// };
 
-
-const std::array<float, 8> uv = {
-    1.0f, 1.0f,
-    1.0f, 0.0f,
-    0.0f, 0.0f,
-    0.0f, 1.0f
-};
-
-const std::vector<GLuint> indices = {
-	0, 1, 2,
-	2, 3, 0
-};
+// const std::vector<GLuint> indices = {
+// 	0, 1, 2,
+// 	2, 3, 0
+// };
 
 namespace RT {
 	Application::Application(const ApplicationSpecification &spec)
@@ -104,7 +98,7 @@ namespace RT {
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-		SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS);
+		SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
 		m_WindowHandle = SDL_CreateWindow(
 			m_Specification.Name, SDL_WINDOWPOS_CENTERED,
 			SDL_WINDOWPOS_CENTERED, m_Specification.Width,
@@ -154,10 +148,10 @@ namespace RT {
 		SDL_GL_MakeCurrent(m_WindowHandle, m_glContext);
 
                 // Generate opengl shader program
-		GenCircle(0.5f, 12, &circle);
+		GenCircle(0.4f, 48, &vertices, &uv);
 
-                glViewport(0, 0, m_Specification.Width, m_Specification.Height);
-                glClearColor(0.02f, 0.01f, 0.04f, 1.0f);
+                glViewport((m_Specification.Width - m_Specification.Height) * 0.5, 0, m_Specification.Height, m_Specification.Height);  // TEMP
+                glClearColor(0.04f, 0.02f, 0.08f, 1.0f);
                 glClear(GL_COLOR_BUFFER_BIT);
 		#ifdef defined(WL_DIST) && defined(WL_PLATFORM_WINDOWS)
 		GenTexture(&image, "assets\\textures\\16xsi.png");
@@ -196,7 +190,7 @@ namespace RT {
 		m_Running = true;
                 glUseProgram(m_ShaderProgram);
 	        glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex"), 0);
-	        glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex2"), 1);
+                glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex2"), 1);
                 while (m_Running) {
 			PollEvent();
 
@@ -215,8 +209,8 @@ namespace RT {
 			glBindVertexArray(VAO[0]);
 
 			// glEnable(GL_DEBUG_OUTPUT);
-                        // glDrawArrays(GL_TRIANGLES, 0, 3);
-			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+                        // glDrawArrays(GL_TRIANGLES, 0, circle.size());
+			glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
                         // Gui->Run();
 			
@@ -252,7 +246,7 @@ namespace RT {
         }
 
         void Application::GenTexture(Image* image, std::string path, int index) {
-		stbi_set_flip_vertically_on_load(true);  // must flip since images usually have y = 0.0 on the top, while openGL has it on the bottom
+		// stbi_set_flip_vertically_on_load(true);  // must flip since images usually have y = 0.0 on the top, while openGL has it on the bottom
 		image->texture.resize(image->texture.size() + 1);
 		image->data = stbi_load(&path[0], &(image->width), &(image->height), &(image->nrChannels), 0);
 		
@@ -369,7 +363,7 @@ namespace RT {
 		
                 glBindVertexArray(VAO[0]);
                 glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices.data(), GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(0 * (sizeof(float))));
                 glEnableVertexAttribArray(0);
 
@@ -380,7 +374,7 @@ namespace RT {
 		// glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * (sizeof(float))));
 		// glEnableVertexAttribArray(2);
                 glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(uv), uv.data(), GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(std::vector<glm::vec3>) * uv.size(), uv.data(), GL_STATIC_DRAW);
 		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
 		glEnableVertexAttribArray(2);
 
@@ -388,7 +382,7 @@ namespace RT {
 		EAB.resize(1);
                 glGenBuffers(EAB.size(), EAB.data());
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EAB[0]);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices.data(), GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(std::vector<GLuint>) * indices.size(), indices.data(), GL_STATIC_DRAW);
 
 		//                     Loc Size  Type    Normalize      Stride        Pos offset
 		// glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
@@ -396,18 +390,26 @@ namespace RT {
                 return ProgramID;
 	}
 
-        void Application::GenCircle(float radius, int vertCount, std::vector<float>* vertices) {
+	void Application::GenCircle(float radius, int vertCount, std::vector<glm::vec3>* vertices, std::vector<glm::vec2>* uv) {
 		float angle = 360.0f / vertCount;
-                // int tri_count = vertCount - 2;
-                for (int i = 0; i < vertCount; i++) {
-			float theta = i * angle;
-			float theta_1 = (i - 1) * angle;
+		float theta, x, y;
+		float pi = glm::pi<float>();
+                int tri_count = vertCount - 2;
 
-			if (i + 1 % 3 == 0) {
-				vertices->push_back(radius * cos(glm::radians(theta)));
-				vertices->push_back(radius * sin(glm::radians(theta_1)));
-				vertices->push_back(0);
-			}
-		}
+                for (int i = 0; i < vertCount; i++) {
+			// if (i >= vertCount - 2) break;
+			theta = i * angle;
+			x = radius * cos(glm::radians(theta));
+			y = radius * sin(glm::radians(theta));
+			vertices->push_back(glm::vec3(x, y, 0.0f));
+			uv->push_back(glm::vec2(((cos(glm::radians(theta))+1) * 0.5), ((cos((glm::radians(theta))-pi*1.5)+1) * 0.5)));
+			// std::cout << "(" << uv[0][i].x << ", " << uv[0][i].y << ")" << std::endl;
+			// std::cout << "(" << vertices[i] << ", " << vertices[i+1] << ", " << vertices[i+2] << ")" << std::endl;
+                        if (i < tri_count) {
+				indices.push_back(0);
+				indices.push_back(i+1);
+				indices.push_back(i+2);
+			};
+                }
 	}
 }
