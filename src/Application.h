@@ -2,17 +2,13 @@
 #include <stdlib.h>
 /* #include <vector> */
 /* #include <memory> */
+#include <string>
 #include <functional>
 #include <SDL.h>
 #include <SDL_events.h>
 #include <SDL_keycode.h>
 #include <SDL_opengl.h>
 #include "GUI.h"
-
-/* #define STB_IMAGE_IMPLEMENTATION */
-/* #include "stb_image.h" */
-/* #define STB_IMAGE_WRITE_IMPLEMENTATION */
-/* #include "stb_image_write.h" */
 
 extern bool g_ApplicationRunning;
 extern const char* glsl_version;
@@ -23,6 +19,12 @@ namespace RT {
 		int Width = 1280;
 		int Height = 720;
         };
+	
+	struct Image {
+		int width, height, nrChannels;
+		unsigned int texture;
+		unsigned char* data;
+	};
 
         class Application {
         public:
@@ -39,9 +41,10 @@ namespace RT {
 
 		float GetTime();
 
-		// void Render();
+                // void Render();
+		void GenTexture(Image* image, std::string path);
 		GLuint CreateShaderProgram(const char* vertex_file_path, const char* fragment_file_path);
-		// GLuint CreateShaderProgram(const char* vertex_file_path);
+                // GLuint CreateShaderProgram(const char* vertex_file_path);
 
 		void SetMenubarCallback(const std::function<void()>& menubarCallback) { m_MenubarCallback = menubarCallback; }
 	private:
@@ -50,6 +53,7 @@ namespace RT {
 		// SDL_Renderer* m_Renderer = nullptr;
                 SDL_GLContext m_glContext = NULL;
 
+		struct Image image;
                 GLuint m_ShaderProgram;
 		std::vector<GLuint> VAO;
 		std::vector<GLuint> VBO;

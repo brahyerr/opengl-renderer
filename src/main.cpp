@@ -7,7 +7,7 @@
 RT::Application* RT::CreateApplication(int argc, char **argv)
 {
 	RT::ApplicationSpecification spec;
-	spec.Name = "Raytracer!";
+	spec.Name = "OpenGL Fun";
 	spec.Width = 1024;
 	spec.Height = 768;
 

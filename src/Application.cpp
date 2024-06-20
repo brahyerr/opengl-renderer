@@ -2,6 +2,7 @@
 #include <SDL_keycode.h>
 #include <SDL_opengl.h>
 #include <SDL_video.h>
+#include <cmath>
 #include <cstddef>
 #include <ctime>
 #include <glm/glm.hpp>
@@ -14,42 +15,30 @@
 #include <sstream>
 #include <vector>
 
-#include "Application.h"
-#include "imgui_impl_sdl2.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#include "Application.h"
+#include "imgui_impl_sdl2.h"
+
 static RT::Application *s_Instance = nullptr;
 static RT::GUI *Gui = nullptr;
 
-static const float vertices[] = {
-	0.5f,  0.5f,  0.0f,  1.0f, 0.0f, 0.0f,
-	0.5f,  -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,
-	-0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,
-	-0.5f, 0.5f,  0.0f,  1.0f, 0.0f, 1.0f,
-	0.0f, 0.9f,  0.0f,  0.8f, 1.0f, 0.5f
+const float vertices[] = {
+	
+	// Viewport - vertices and UV
+	0.8f, 1.0f, 0.0f,      1.0f, 1.0f,    // top right
+	0.8f, -1.0f, 0.0f,     1.0f, 0.0f,    // bot right
+	-0.8f, -1.0f, 0.0f, 0.0f, 0.0f,  // bot left
+	-0.8f, 1.0f, 0.0f,  0.0f, 1.0f   // top left
 };
 
-// static const float vertices[] = {
-// 	0.5f,  0.5f,  0.0f,
-// 	0.5f,  -0.5f, 0.0f,
-// 	-0.5f, -0.5f, 0.0f
-//     // -0.5f, 0.5f,  0.0f  // top left
-// };
 
-// static const float vertexColors[] = {
-//     1.0f,  0.0f, 0.0f,
-//     0.0f, 1.0f, 0.0f,
-//     0.0f,  0.0f,  1.0f
-//     // 0.5f, 0.5f,  0.5f  // top left
-// };
-
-static const GLuint indices[] = {
-	0, 1, 2, // first triangle
-	2, 3, 0, // second triangle
-	0, 3, 4  // third triangle
+const GLuint indices[] = {
+	0, 1, 3,
+	1, 2, 3
 };
 
 namespace RT {
@@ -103,18 +92,11 @@ namespace RT {
 #ifdef SDL_HINT_IME_SHOW_UI
 		SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
 #endif
-		// m_Renderer = SDL_CreateRenderer(
-                //     m_WindowHandle, -1,
-                //     SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-                // SDL_SetRenderDrawColor(m_Renderer, 255, 0, 0, 255);
-                // SDL_RenderDrawLine(m_Renderer, 0, 0, 1280, 720);
-		// SDL_RenderPresent(m_Renderer);
-
 		// Create window with graphics context
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-		SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI);
+		SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS);
 		m_WindowHandle = SDL_CreateWindow(
 			m_Specification.Name, SDL_WINDOWPOS_CENTERED,
 			SDL_WINDOWPOS_CENTERED, m_Specification.Width,
@@ -162,16 +144,20 @@ namespace RT {
 			// }
 		}
 		SDL_GL_MakeCurrent(m_WindowHandle, m_glContext);
-                // SDL_GL_SetSwapInterval(1); // Enable vsync
 		
                 glViewport(0, 0, m_Specification.Width, m_Specification.Height);
-                glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+                glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
                 glClear(GL_COLOR_BUFFER_BIT);
 		#ifdef defined(WL_DIST) && defined(WL_PLATFORM_WINDOWS)
-		m_ShaderProgram = CreateShaderProgram("shaders\\hello_triangle.vert", "shaders\\hello_triangle.frag");
+		GenTexture(&image, "assets\\textures\\16xsi.png");
+		m_ShaderProgram = CreateShaderProgram("shaders\\shader.vert", "shaders\\shader.frag");
 		#else
-		m_ShaderProgram = CreateShaderProgram("shaders/hello_triangle.vert", "shaders/hello_triangle.frag");
+		GenTexture(&image, "assets/textures/marlboro2.jpg");
+		// GenTexture(&image, "assets/textures/set-of-16-flat-business-icons-vector-8001733.jpg");
+		m_ShaderProgram = CreateShaderProgram("shaders/shader.vert", "shaders/shader.frag");
 		#endif
+		glUseProgram(m_ShaderProgram);
+		
                 // Gui = new GUI(m_WindowHandle);
         }
 	
@@ -194,21 +180,25 @@ namespace RT {
 
         void Application::Run() {
 		m_Running = true;
+                glUseProgram(m_ShaderProgram);
                 while (m_Running) {
 			PollEvent();
-		  
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			glUseProgram(m_ShaderProgram);
-			glBindVertexArray(VAO[0]);
-			// glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
 
-                        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+                        glClear(GL_COLOR_BUFFER_BIT);
+                        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			float time = GetTime();
+			float gl_time = glGetUniformLocation(m_ShaderProgram, "u_time");
+			glUniform1f(gl_time, time);
+
+			glBindVertexArray(VAO[0]);
+			glBindTexture(GL_TEXTURE_2D, image.texture);
+
 			// glEnable(GL_DEBUG_OUTPUT);
                         // glDrawArrays(GL_TRIANGLES, 0, 3);
-			
-			glDrawElements(GL_TRIANGLES, 9, GL_UNSIGNED_INT, 0);
+			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-			// Gui->Run();
+                        // Gui->Run();
+			
 			SDL_GL_SwapWindow(m_WindowHandle);
 		};
         }
@@ -219,22 +209,48 @@ namespace RT {
 			// ImGui_ImplSDL2_ProcessEvent(&event);
 			if (event.type == SDL_QUIT)
 				m_Running = false;
-			if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE) 
+			if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE)
 				m_Running = false;
 			if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(m_WindowHandle))
-				m_Running = false;
+                          m_Running = false;
+                        if (event.type == SDL_WINDOWEVENT_RESIZED) {
+				SDL_GetWindowSize(m_WindowHandle, &(m_Specification.Width), &(m_Specification.Height));
+				glViewport(0, 0, m_Specification.Width, m_Specification.Height);
+			};
 
 		};
         }
 
         float Application::GetTime() {
 		typedef std::chrono::high_resolution_clock clock;
-		typedef std::chrono::duration<float, std::milli> duration;
+		typedef std::chrono::duration<float, std::ratio<1>> duration; // use std::milli or std::ratio<1,1000> for ms instead
 
 		duration elapsed = clock::now() - time_start;
 	  
-		return (float) elapsed.count();
+		return (float) elapsed.count(); // seconds
         }
+
+        void Application::GenTexture(Image* image, std::string path) {
+		stbi_set_flip_vertically_on_load(true);  // must flip since images usually have y = 0.0 on the top, while openGL has it on the bottom
+		image->data = stbi_load(&path[0], &(image->width), &(image->height), &(image->nrChannels), 0);
+                glGenTextures(1, &image->texture);
+                glBindTexture(GL_TEXTURE_2D, image->texture);
+		
+		// set the texture wrapping/filtering options (on the currently bound texture object)
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		
+		if (image->data) {
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image->width, image->height, 0, GL_RGB, GL_UNSIGNED_BYTE, image->data);
+                        glGenerateMipmap(GL_TEXTURE_2D);
+			// glTexCoord2f(GLfloat s, GLfloat t);
+                } else {
+			std::cout << "Failed to load texture!" << std::endl;
+                }
+		stbi_image_free(image->data);
+	};
 	
         GLuint Application::CreateShaderProgram(const char *vertex_file_path, const char *fragment_file_path) {
 		// GLuint Application::CreateShaderProgram(const char *vertex_file_path) {
@@ -330,14 +346,16 @@ namespace RT {
                 glBindVertexArray(VAO[0]);
                 glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(0 * (sizeof(float))));
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(0 * (sizeof(float))));
                 glEnableVertexAttribArray(0);
 
 		// Color attribute
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * (sizeof(float))));
-		glEnableVertexAttribArray(1);
-
+		// glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * (sizeof(float))));
+                // glEnableVertexAttribArray(1);
 		
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * (sizeof(float))));
+		glEnableVertexAttribArray(2);
+
                 // Element array buffer - This is bound automatically to the current VAO, meaning a VAO must be currently bound first
 		EAB.resize(1);
                 glGenBuffers(EAB.size(), EAB.data());
@@ -346,7 +364,7 @@ namespace RT {
 
 		//                     Loc Size  Type    Normalize      Stride        Pos offset
 		// glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-		
+
                 return ProgramID;
 	}
 
