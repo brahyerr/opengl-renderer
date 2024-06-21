@@ -149,7 +149,7 @@ namespace RT {
 		SDL_GL_MakeCurrent(m_WindowHandle, m_glContext);
 
                 // Generate opengl shader program
-		GenCircle(0.4f, 48, &vertices, &uv);
+		GenCircle(0.25f, 36, &vertices, &uv);
 
                 glViewport((m_Specification.Width - m_Specification.Height) * 0.5, 0, m_Specification.Height, m_Specification.Height);  // TEMP
                 glClearColor(0.04f, 0.02f, 0.08f, 1.0f);
@@ -192,30 +192,35 @@ namespace RT {
                 glUseProgram(m_ShaderProgram);
 	        glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex"), 0);
                 glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex2"), 1);
+		glBindVertexArray(VAO[0]);
 
                 while (m_Running) {
 			PollEvent();
+			// glEnable(GL_DEBUG_OUTPUT);
 
                         glClear(GL_COLOR_BUFFER_BIT);
-			float time = GetTime();
-			float gl_time = glGetUniformLocation(m_ShaderProgram, "u_time");
-                        glUniform1f(gl_time, time);
-			
-			Trans = glm::rotate(Identity, glm::radians(time * 50 + (float) (sin(time) * 20 + 30)), glm::vec3(0.5, 0.5, 0.5));
-			Trans = glm::scale(Trans, glm::vec3(2,2,2));
-			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_trans"), 1, GL_FALSE, glm::value_ptr(Trans));
-
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, image.texture[0]);
 			glActiveTexture(GL_TEXTURE1);
                         glBindTexture(GL_TEXTURE_2D, image.texture[1]);
-
-			glUseProgram(m_ShaderProgram);
-			glBindVertexArray(VAO[0]);
-
-			// glEnable(GL_DEBUG_OUTPUT);
+			
+			float time = GetTime();
+			float u_time = glGetUniformLocation(m_ShaderProgram, "u_time");
+                        glUniform1f(u_time, time);
+			
+			Trans = glm::translate(Identity, glm::vec3(-0.5, 0.0, 0.0));
+			Trans = glm::rotate(Trans, glm::radians(-(time * 50 + (float) (cos(time) * 20 + 30))), glm::vec3(0.5, 0.5, 0.5));
+			Trans = glm::scale(Trans, glm::vec3(2,2,2));
+			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_trans"), 1, GL_FALSE, glm::value_ptr(Trans));
 			glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
+						
+			Trans = glm::translate(Identity, glm::vec3(0.5, 0.0, 0.0));
+			Trans = glm::rotate(Trans, glm::radians(time * 50 + (float) (sin(time) * 20 + 30)), glm::vec3(0.5, 0.5, 0.5));
+			Trans = glm::scale(Trans, glm::vec3(2,2,2));
+			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_trans"), 1, GL_FALSE, glm::value_ptr(Trans));
+			glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+			
                         // Gui->Run();
 			
 			SDL_GL_SwapWindow(m_WindowHandle);
