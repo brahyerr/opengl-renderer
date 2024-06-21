@@ -4,15 +4,16 @@ in vec2 v_uv;
 out vec4 f_color;
 
 uniform float u_time;
+uniform float u_time2;
 uniform sampler2D u_tex; // this is a built-in function
 uniform sampler2D u_tex2;
 
 void main()
 {
-	vec3 color = 0.5 + 0.5 * sin(u_time * 0.5 + v_uv.xyx + vec3(0.0, 2.75, 4.0));
-	color.r *= 0.2;
-	color.g *= 0.2;
-	color.b *= 0.2;
+	vec3 color = 0.5 + 0.5 * sin(u_time2 * 0.5 + v_uv.xyx + vec3(0.0, 2.75, 4.0));
+	color.r *= 0.3;
+	color.g *= 0.3;
+	color.b *= 0.3;
 
 	vec2 f_uv = v_uv;
 	// f_uv.x += 0.2 * cos(u_time * 0.5 + v_uv.y);

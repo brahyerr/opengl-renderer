@@ -23,14 +23,23 @@ namespace RT {
 		int Height = 720;
         };
 	
-	struct Image {
-		int width, height, nrChannels;
-		std::vector<unsigned int> texture;
-		unsigned char* data;
-	};
 	const std::chrono::high_resolution_clock::time_point time_start = std::chrono::high_resolution_clock::now();
 
         class Application {
+        private:
+		typedef int VBOInt;
+		struct ImageData {
+			int width, height, nrChannels;
+			std::vector<unsigned int> texture;
+			unsigned char* data;
+		} Image;
+                struct RenderData {
+			std::vector<glm::vec3> vert;
+			std::vector<glm::vec2> uv;
+                        std::vector<VBOInt> off;
+			std::vector<GLuint> idx;
+		} RenderData;
+
         public:
 		Application(const ApplicationSpecification &applicationSpecification = ApplicationSpecification());
                 ~Application();
@@ -46,13 +55,18 @@ namespace RT {
 		float GetTime();
 
                 // void Render();
-		void GenCircle(float radius, int vertCount, std::vector<glm::vec3>* vertices, std::vector<glm::vec2>* uv);
-		void GenTexture(Image* image, std::string path, int index);
+		void GenCircle(float radius, int vertCount, struct RenderData* RenderData);
+		void GenQuad(float scale, float width, float height, struct RenderData* RenderData);
+		void GenTri(float scale, float top, float right, float left, struct RenderData* RenderData);
+		void GenTexture(struct ImageData* imageData, std::string path, int index);
 		GLuint CreateShaderProgram(const char* vertex_file_path, const char* fragment_file_path);
-                // GLuint CreateShaderProgram(const char* vertex_file_path);
+
+		// 		void GenCircle(float radius, int vertCount, std::vector<glm::vec3>* vertices, std::vector<glm::vec2>* uv = nullptr);
+		// void GenQuad(float scale, float width, float height, std::vector<glm::vec3>* vertices, std::vector<glm::vec2>* uv = nullptr);
+		// void GenTri(float scale, float top, float right, float left, std::vector<glm::vec3>* vertices, std::vector<glm::vec2>* uv = nullptr);
 
 		// void SetMenubarCallback(const std::function<void()>& menubarCallback) { m_MenubarCallback = menubarCallback; }
-	private:
+              private:
 		ApplicationSpecification m_Specification;
                 SDL_Window *m_WindowHandle = nullptr;
 		// SDL_Renderer* m_Renderer = nullptr;
@@ -60,11 +74,10 @@ namespace RT {
 		
 		const glm::mat4 Identity = glm::mat4(1.0);
 		// Most of these fields should be moved to different classes
-                struct Image image;
                 GLuint m_ShaderProgram;
-                std::vector<glm::vec3> vertices;
-		std::vector<glm::vec2> uv;
-		std::vector<GLuint> VAO, VBO, EAB, indices;
+                // std::vector<glm::vec3> vertices;
+		// std::vector<glm::vec2> uv;
+		std::vector<GLuint> vao, vbo, eab;
 		// std::vector<GLuint> UVO;
 
 		bool m_Running = false;

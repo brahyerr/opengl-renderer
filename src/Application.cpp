@@ -9,7 +9,6 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/scalar_constants.hpp>
 #include <glm/fwd.hpp>
-// #include <glm/glm.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -25,24 +24,13 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#define EQ_TRI_RATIO 0.86602540
+
 #include "Application.h"
 #include "imgui_impl_sdl2.h"
 
 static RT::Application *s_Instance = nullptr;
 static RT::GUI *Gui = nullptr;
-
-// const std::array<float, 12> vertices = {
-//     // Viewport - vertices
-//     0.8f,  0.8f,  0.0f,
-//     0.8f,  -0.8f, 0.0f,
-//     -0.8f, -0.8f, 0.0f,
-//     -0.8f, 0.8f,  0.0f
-// };
-
-// const std::vector<GLuint> indices = {
-// 	0, 1, 2,
-// 	2, 3, 0
-// };
 
 namespace RT {
 	Application::Application(const ApplicationSpecification &spec)
@@ -99,7 +87,7 @@ namespace RT {
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-		SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
+		SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_BORDERLESS | SDL_WINDOW_RESIZABLE);
 		m_WindowHandle = SDL_CreateWindow(
 			m_Specification.Name, SDL_WINDOWPOS_CENTERED,
 			SDL_WINDOWPOS_CENTERED, m_Specification.Width,
@@ -149,17 +137,19 @@ namespace RT {
 		SDL_GL_MakeCurrent(m_WindowHandle, m_glContext);
 
                 // Generate opengl shader program
-		GenCircle(0.25f, 36, &vertices, &uv);
+		// GenCircle(0.25f, 36, &RenderData);
+		GenQuad(0.2f, 1.0f, 1.0f, &RenderData);
+		// GenTri(1.0f, EQ_TRI_RATIO * 0.8f, 0.4f, 0.4f, &RenderData);
 
                 glViewport((m_Specification.Width - m_Specification.Height) * 0.5, 0, m_Specification.Height, m_Specification.Height);  // TEMP
                 glClearColor(0.04f, 0.02f, 0.08f, 1.0f);
                 glClear(GL_COLOR_BUFFER_BIT);
 		#ifdef defined(WL_DIST) && defined(WL_PLATFORM_WINDOWS)
-		GenTexture(&image, "assets\\textures\\16xsi.png");
-		m_ShaderProgram = CreateShaderProgram("shaders\\sphere_test.vert", "shaders\\sphere_test.frag");
+		GenTexture(&Image, "assets\\textures\\16xsi.png");
+		m_ShaderProgram = CreateShaderProgram("shaders\\shader.vert", "shaders\\shader.frag");
 		#else
-		GenTexture(&image, "assets/textures/500_yen_bicolor_clad_coin_obverse.jpg", 0);
-		GenTexture(&image, "assets/textures/16xsi.png", 1);
+		GenTexture(&Image, "assets/textures/16xsi.png", 0);
+		GenTexture(&Image, "assets/textures/500_yen_bicolor_clad_coin_obverse.jpg", 1);
 		m_ShaderProgram = CreateShaderProgram("shaders/shader.vert", "shaders/shader.frag");
 		#endif
 		glUseProgram(m_ShaderProgram);
@@ -174,8 +164,8 @@ namespace RT {
 	
 	void Application::Shutdown() {
 		// delete Gui;
-                glDeleteVertexArrays(VAO.size(), VAO.data());
-                glDeleteBuffers(VBO.size(), VBO.data());
+                glDeleteVertexArrays(vao.size(), vao.data());
+                glDeleteBuffers(vbo.size(), vbo.data());
 		glDeleteProgram(m_ShaderProgram);
                 SDL_GL_DeleteContext(m_glContext);
                 SDL_DestroyWindow(m_WindowHandle);
@@ -188,11 +178,11 @@ namespace RT {
 		// TODO: Split gl function calls into proper classes
 		m_Running = true;
 		
-                glm::mat4 Trans;
+                glm::mat4 trans;
                 glUseProgram(m_ShaderProgram);
 	        glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex"), 0);
                 glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex2"), 1);
-		glBindVertexArray(VAO[0]);
+		glBindVertexArray(vao[0]);
 
                 while (m_Running) {
 			PollEvent();
@@ -200,27 +190,30 @@ namespace RT {
 
                         glClear(GL_COLOR_BUFFER_BIT);
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, image.texture[0]);
+			glBindTexture(GL_TEXTURE_2D, Image.texture[0]);
 			glActiveTexture(GL_TEXTURE1);
-                        glBindTexture(GL_TEXTURE_2D, image.texture[1]);
+                        glBindTexture(GL_TEXTURE_2D, Image.texture[1]);
 			
 			float time = GetTime();
 			float u_time = glGetUniformLocation(m_ShaderProgram, "u_time");
+			float u_time2 = glGetUniformLocation(m_ShaderProgram, "u_time2");
                         glUniform1f(u_time, time);
+                        glUniform1f(u_time2, time);
 			
-			Trans = glm::translate(Identity, glm::vec3(-0.5, 0.0, 0.0));
-			Trans = glm::rotate(Trans, glm::radians(-(time * 50 + (float) (cos(time) * 20 + 30))), glm::vec3(0.5, 0.5, 0.5));
-			Trans = glm::scale(Trans, glm::vec3(2,2,2));
-			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_trans"), 1, GL_FALSE, glm::value_ptr(Trans));
-			glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+			trans = glm::translate(Identity, glm::vec3(0.0f, -0.5f, 0.0f));
+			trans = glm::rotate(trans, glm::radians(-(time * 50 + (float) (cos(time) * 20 + 30))), glm::vec3(0.5, 0.5, 0.5));
+			trans = glm::scale(trans, glm::vec3(2,2,2));
+			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_trans"), 1, GL_FALSE, glm::value_ptr(trans));
+			glDrawElements(GL_TRIANGLES, RenderData.idx.size(), GL_UNSIGNED_INT, 0);
 
-						
-			Trans = glm::translate(Identity, glm::vec3(0.5, 0.0, 0.0));
-			Trans = glm::rotate(Trans, glm::radians(time * 50 + (float) (sin(time) * 20 + 30)), glm::vec3(0.5, 0.5, 0.5));
-			Trans = glm::scale(Trans, glm::vec3(2,2,2));
-			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_trans"), 1, GL_FALSE, glm::value_ptr(Trans));
-			glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
-			
+
+			glUniform1f(u_time2, time + 9);
+			trans = glm::translate(Identity, glm::vec3(0.5, 0.0, 0.0));
+			trans = glm::rotate(trans, glm::radians(time * 50 + (float) (sin(time) * 20 + 30)), glm::vec3(0.5, 0.5, 0.5));
+			trans = glm::scale(trans, glm::vec3(2,2,2));
+			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_trans"), 1, GL_FALSE, glm::value_ptr(trans));
+
+			glDrawElements(GL_TRIANGLES, RenderData.idx.size(), GL_UNSIGNED_INT, 0);
                         // Gui->Run();
 			
 			SDL_GL_SwapWindow(m_WindowHandle);
@@ -253,15 +246,13 @@ namespace RT {
 	  
 		return (float) elapsed.count(); // seconds
         }
-
-        void Application::GenTexture(Image* image, std::string path, int index) {
+	void Application::GenTexture(struct ImageData* Image, std::string path, int index) {
 		stbi_set_flip_vertically_on_load(true);  // must flip since images usually have y = 0.0 on the top, while openGL has it on the bottom
-		image->texture.resize(image->texture.size() + 1);
-		image->data = stbi_load(&path[0], &(image->width), &(image->height), &(image->nrChannels), 0);
+		Image->texture.resize(Image->texture.size() + 1);
+		Image->data = stbi_load(&path[0], &(Image->width), &(Image->height), &(Image->nrChannels), 0);
 		
-		// consider using stbi_load(FileSystem::getPath("resources/textures/awesomeface.png").c_str(), &width, &height, &nrChannels, 0);
-                glGenTextures(1, &image->texture[index]);
-		glBindTexture(GL_TEXTURE_2D, image->texture[index]);
+                glGenTextures(1, &Image->texture[index]);
+		glBindTexture(GL_TEXTURE_2D, Image->texture[index]);
 		
 		// set the texture wrapping/filtering options (on the currently bound texture object)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
@@ -270,13 +261,13 @@ namespace RT {
 		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		
-		if (image->data) {
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image->width, image->height, 0, GL_RGB, GL_UNSIGNED_BYTE, image->data);
+		if (Image->data) {
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, Image->width, Image->height, 0, GL_RGB, GL_UNSIGNED_BYTE, Image->data);
                         glGenerateMipmap(GL_TEXTURE_2D);
                 } else {
 			std::cout << "Failed to load texture!" << std::endl;
                 }
-		stbi_image_free(image->data);
+		stbi_image_free(Image->data);
 	};
 	
         GLuint Application::CreateShaderProgram(const char *vertex_file_path, const char *fragment_file_path) {
@@ -364,13 +355,13 @@ namespace RT {
 
                 // LearnOpenGL Stuff below
 
-		VAO.resize(1); VBO.resize(2);
-		glGenVertexArrays(VAO.size(), VAO.data());
-                glGenBuffers(VBO.size(), VBO.data());
+		vao.resize(1); vbo.resize(2);
+		glGenVertexArrays(vao.size(), vao.data());
+                glGenBuffers(vbo.size(), vbo.data());
 		
-                glBindVertexArray(VAO[0]);
-                glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
+                glBindVertexArray(vao[0]);
+                glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * RenderData.vert.size(), RenderData.vert.data(), GL_STATIC_DRAW);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(0 * (sizeof(float))));
                 glEnableVertexAttribArray(0);
 
@@ -381,16 +372,16 @@ namespace RT {
 		// UV attribute
 		// glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * (sizeof(float))));
 		// glEnableVertexAttribArray(2);
-                glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(std::vector<glm::vec3>) * uv.size(), uv.data(), GL_STATIC_DRAW);
+                glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(std::vector<glm::vec3>) * RenderData.uv.size(), RenderData.uv.data(), GL_STATIC_DRAW);
 		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
 		glEnableVertexAttribArray(1);
 
-                // Element array buffer - This is bound automatically to the current VAO, meaning a VAO must be currently bound first
-		EAB.resize(1);
-                glGenBuffers(EAB.size(), EAB.data());
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EAB[0]);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(std::vector<GLuint>) * indices.size(), indices.data(), GL_STATIC_DRAW);
+                // Element array buffer - This is bound automatically to the current vao, meaning a vao must be currently bound first
+		eab.resize(1);
+                glGenBuffers(eab.size(), eab.data());
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eab[0]);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(std::vector<GLuint>) * RenderData.idx.size(), RenderData.idx.data(), GL_STATIC_DRAW);
 
 		//                     Loc Size  Type    Normalize      Stride        Pos offset
 		// glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
@@ -398,25 +389,91 @@ namespace RT {
                 return ProgramID;
 	}
 
-	void Application::GenCircle(float radius, int vertCount, std::vector<glm::vec3>* vertices, std::vector<glm::vec2>* uv) {
-		float angle = 360.0f / vertCount;
-		float theta, x, y;
-		float pi = glm::pi<float>();
-                int tri_count = vertCount - 2;
-
+	void Application::GenCircle(float radius, int vertCount, struct RenderData* RenderData) {
+		const int tri_count = vertCount - 2;
+		const float angle = 360.0f / vertCount;
+		const float pi = glm::pi<float>();
+                float theta, x, y;
+		
+		RenderData->vert.clear();
+		RenderData->uv.clear();
+		RenderData->idx.clear();
+		RenderData->vert.reserve(RenderData->vert.size() + vertCount);
+		RenderData->uv.reserve(RenderData->vert.size() + vertCount);
+                RenderData->idx.reserve(RenderData->vert.size() + tri_count);
+		
                 for (int i = 0; i < vertCount; i++) {
 			theta = i * angle;
 			x = radius * cos(glm::radians(theta));
 			y = radius * sin(glm::radians(theta));
-			vertices->push_back(glm::vec3(x, y, 0.0f));
-			uv->push_back(glm::vec2(0.0 + 1.0 * (x / radius + 1) * 0.5, 0.0 + 1.0 * (y / radius + 1)*0.5));
+			RenderData->vert.push_back(glm::vec3(x, y, 0.0f));
+			RenderData->uv.push_back(glm::vec2(0.0f + 1.0f * (x / radius + 1) * 0.5f, 0.0f + 1.0f * (y / radius + 1)*0.5f));
 			// uv->push_back(glm::vec2(1.2 * ((cos(glm::radians(theta))+1) * 0.5), (1.2 * (cos((glm::radians(theta))-pi*1.5)+1) * 0.5)));
-			// std::cout << "(" << uv[0][i].x << ", " << uv[0][i].y << ")" << std::endl;
+			// std::cout << "(" << uv[0][i].y << ", " << uv[0][i].y << ")" << std::endl;
                         if (i < tri_count) {
-				indices.push_back(0);
-				indices.push_back(i+1);
-				indices.push_back(i+2);
+				RenderData->idx.push_back(0);
+				RenderData->idx.push_back(i+1);
+				RenderData->idx.push_back(i+2);
 			};
                 }
+        }
+	
+	void Application::GenTri(float scale, float top, float right, float left, struct RenderData* RenderData) {
+		// origin is aligned with the top y axis
+		// so right is right from top, and left is left from top
+		const float n_top = top * scale * 0.25;
+		const float n_right = right * scale * 0.5;
+		const float n_left = -left * scale * 0.5;
+		RenderData->vert.clear();
+		RenderData->uv.clear();
+		RenderData->idx.clear();
+		RenderData->vert.reserve(RenderData->vert.size() + 3);
+		RenderData->uv.reserve(RenderData->vert.size() + 3);
+		RenderData->idx.reserve(RenderData->vert.size() + 3);
+
+		RenderData->vert.push_back(glm::vec3(0.0f, n_top, 0.0f));  // top
+		RenderData->vert.push_back(glm::vec3(n_right, -n_top, 0.0f));  // right
+		RenderData->vert.push_back(glm::vec3(n_left, -n_top, 0.0f));  // left
+		
+		// RenderData->vert.push_back(glm::vec3(0.0f, 0.5f, 0.0f));  // top
+		// RenderData->vert.push_back(glm::vec3( 0.5f, -0.5f, 0.0f));  // right
+		// RenderData->vert.push_back(glm::vec3(-0.5f, -0.5f, 0.0f));  // left
+		
+		RenderData->uv.push_back(glm::vec2(0.5f, 1.0f));  // top
+		RenderData->uv.push_back(glm::vec2(1.0f, 0.0f));  // right
+		RenderData->uv.push_back(glm::vec2(0.0f, 0.0f));  // left
+	  
+		RenderData->idx.push_back(0);
+		RenderData->idx.push_back(1);
+		RenderData->idx.push_back(2);
+
+        }
+	
+	void Application::GenQuad(float scale, float width, float height, struct RenderData* RenderData) {
+		const float n_width = width * scale * 0.5;
+		const float n_height = height * scale * 0.5;
+		RenderData->vert.clear();
+		RenderData->uv.clear();
+		RenderData->idx.clear();
+		RenderData->vert.reserve(RenderData->vert.size() + 4);
+		RenderData->uv.reserve(RenderData->vert.size() + 4);
+		RenderData->idx.reserve(RenderData->vert.size() + 6);
+
+		RenderData->vert.push_back(glm::vec3(n_width, n_height, 0.0f));  // top right
+		RenderData->vert.push_back(glm::vec3(n_width, -n_height, 0.0f));  // bot right
+		RenderData->vert.push_back(glm::vec3(-n_width, -n_height, 0.0f));  // bot left
+		RenderData->vert.push_back(glm::vec3(-n_width, n_height, 0.0f));   // top left
+	  
+		RenderData->idx.push_back(0);
+		RenderData->idx.push_back(1);
+		RenderData->idx.push_back(2);
+		RenderData->idx.push_back(2);
+		RenderData->idx.push_back(3);
+		RenderData->idx.push_back(0);
+
+		RenderData->uv.push_back(glm::vec2(1.0f, 1.0f));  // top right
+		RenderData->uv.push_back(glm::vec2(1.0f, 0.0f));  // bot right
+		RenderData->uv.push_back(glm::vec2(0.0f, 0.0f));  // bot left
+		RenderData->uv.push_back(glm::vec2(0.0f, 1.0f));  // top left
 	}
 }
