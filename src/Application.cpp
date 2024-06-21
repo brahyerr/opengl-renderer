@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstddef>
 #include <ctime>
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/scalar_constants.hpp>
 #include <glm/fwd.hpp>
 // #include <glm/glm.hpp>
@@ -155,12 +156,10 @@ namespace RT {
                 glClear(GL_COLOR_BUFFER_BIT);
 		#ifdef defined(WL_DIST) && defined(WL_PLATFORM_WINDOWS)
 		GenTexture(&image, "assets\\textures\\16xsi.png");
-		m_ShaderProgram = CreateShaderProgram("shaders\\shader.vert", "shaders\\shader.frag");
+		m_ShaderProgram = CreateShaderProgram("shaders\\sphere_test.vert", "shaders\\sphere_test.frag");
 		#else
-		GenTexture(&image, "assets/textures/marlboro2.jpg", 0);
+		GenTexture(&image, "assets/textures/500_yen_bicolor_clad_coin_obverse.jpg", 0);
 		GenTexture(&image, "assets/textures/16xsi.png", 1);
-		// GenTexture(&image, "assets/textures/awesomeface.png", 1);
-		// GenTexture(&image, "assets/textures/set-of-16-flat-business-icons-vector-8001733.jpg", 1);
 		m_ShaderProgram = CreateShaderProgram("shaders/shader.vert", "shaders/shader.frag");
 		#endif
 		glUseProgram(m_ShaderProgram);
@@ -188,17 +187,23 @@ namespace RT {
         void Application::Run() {
 		// TODO: Split gl function calls into proper classes
 		m_Running = true;
+		
+                glm::mat4 Trans;
                 glUseProgram(m_ShaderProgram);
 	        glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex"), 0);
                 glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex2"), 1);
+
                 while (m_Running) {
 			PollEvent();
 
                         glClear(GL_COLOR_BUFFER_BIT);
-                        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			float time = GetTime();
 			float gl_time = glGetUniformLocation(m_ShaderProgram, "u_time");
-			glUniform1f(gl_time, time);
+                        glUniform1f(gl_time, time);
+			
+			Trans = glm::rotate(Identity, glm::radians(time * 50 + (float) (sin(time) * 20 + 30)), glm::vec3(0.5, 0.5, 0.5));
+			Trans = glm::scale(Trans, glm::vec3(2,2,2));
+			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_trans"), 1, GL_FALSE, glm::value_ptr(Trans));
 
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, image.texture[0]);
@@ -209,7 +214,6 @@ namespace RT {
 			glBindVertexArray(VAO[0]);
 
 			// glEnable(GL_DEBUG_OUTPUT);
-                        // glDrawArrays(GL_TRIANGLES, 0, circle.size());
 			glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
                         // Gui->Run();
@@ -246,7 +250,7 @@ namespace RT {
         }
 
         void Application::GenTexture(Image* image, std::string path, int index) {
-		// stbi_set_flip_vertically_on_load(true);  // must flip since images usually have y = 0.0 on the top, while openGL has it on the bottom
+		stbi_set_flip_vertically_on_load(true);  // must flip since images usually have y = 0.0 on the top, while openGL has it on the bottom
 		image->texture.resize(image->texture.size() + 1);
 		image->data = stbi_load(&path[0], &(image->width), &(image->height), &(image->nrChannels), 0);
 		
@@ -256,14 +260,14 @@ namespace RT {
 		
 		// set the texture wrapping/filtering options (on the currently bound texture object)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		
 		if (image->data) {
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image->width, image->height, 0, GL_RGB, GL_UNSIGNED_BYTE, image->data);
                         glGenerateMipmap(GL_TEXTURE_2D);
-			// glTexCoord2f(GLfloat s, GLfloat t);
                 } else {
 			std::cout << "Failed to load texture!" << std::endl;
                 }
@@ -271,8 +275,6 @@ namespace RT {
 	};
 	
         GLuint Application::CreateShaderProgram(const char *vertex_file_path, const char *fragment_file_path) {
-		// GLuint Application::CreateShaderProgram(const char *vertex_file_path) {
-		// TODO: Move var declaration to header
                 GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
 		GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
 
@@ -370,13 +372,14 @@ namespace RT {
 		// Color attribute
 		// glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * (sizeof(float))));
                 // glEnableVertexAttribArray(1);
-		
+
+		// UV attribute
 		// glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * (sizeof(float))));
 		// glEnableVertexAttribArray(2);
                 glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(std::vector<glm::vec3>) * uv.size(), uv.data(), GL_STATIC_DRAW);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
-		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+		glEnableVertexAttribArray(1);
 
                 // Element array buffer - This is bound automatically to the current VAO, meaning a VAO must be currently bound first
 		EAB.resize(1);
@@ -397,14 +400,13 @@ namespace RT {
                 int tri_count = vertCount - 2;
 
                 for (int i = 0; i < vertCount; i++) {
-			// if (i >= vertCount - 2) break;
 			theta = i * angle;
 			x = radius * cos(glm::radians(theta));
 			y = radius * sin(glm::radians(theta));
 			vertices->push_back(glm::vec3(x, y, 0.0f));
-			uv->push_back(glm::vec2(((cos(glm::radians(theta))+1) * 0.5), ((cos((glm::radians(theta))-pi*1.5)+1) * 0.5)));
+			uv->push_back(glm::vec2(0.0 + 1.0 * (x / radius + 1) * 0.5, 0.0 + 1.0 * (y / radius + 1)*0.5));
+			// uv->push_back(glm::vec2(1.2 * ((cos(glm::radians(theta))+1) * 0.5), (1.2 * (cos((glm::radians(theta))-pi*1.5)+1) * 0.5)));
 			// std::cout << "(" << uv[0][i].x << ", " << uv[0][i].y << ")" << std::endl;
-			// std::cout << "(" << vertices[i] << ", " << vertices[i+1] << ", " << vertices[i+2] << ")" << std::endl;
                         if (i < tri_count) {
 				indices.push_back(0);
 				indices.push_back(i+1);

@@ -11,6 +11,7 @@
 #include <SDL_keycode.h>
 #include <SDL_opengl.h>
 #include "GUI.h"
+// #include "Shader.h"
 
 extern bool g_ApplicationRunning;
 extern const char* glsl_version;
@@ -27,6 +28,7 @@ namespace RT {
 		std::vector<unsigned int> texture;
 		unsigned char* data;
 	};
+	const std::chrono::high_resolution_clock::time_point time_start = std::chrono::high_resolution_clock::now();
 
         class Application {
         public:
@@ -49,13 +51,14 @@ namespace RT {
 		GLuint CreateShaderProgram(const char* vertex_file_path, const char* fragment_file_path);
                 // GLuint CreateShaderProgram(const char* vertex_file_path);
 
-		void SetMenubarCallback(const std::function<void()>& menubarCallback) { m_MenubarCallback = menubarCallback; }
+		// void SetMenubarCallback(const std::function<void()>& menubarCallback) { m_MenubarCallback = menubarCallback; }
 	private:
 		ApplicationSpecification m_Specification;
                 SDL_Window *m_WindowHandle = nullptr;
 		// SDL_Renderer* m_Renderer = nullptr;
                 SDL_GLContext m_glContext = NULL;
-
+		
+		const glm::mat4 Identity = glm::mat4(1.0);
 		// Most of these fields should be moved to different classes
                 struct Image image;
                 GLuint m_ShaderProgram;
@@ -66,7 +69,6 @@ namespace RT {
 
 		bool m_Running = false;
 
-		const std::chrono::high_resolution_clock::time_point time_start = std::chrono::high_resolution_clock::now();
 		float m_TimeStep = 0.0f;
 		float m_FrameTime = 0.0f;
 		float m_LastFrameTime = 0.0f;
