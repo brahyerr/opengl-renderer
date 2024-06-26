@@ -1,4 +1,5 @@
 #include <GL/glew.h>
+#include <SDL_events.h>
 #include <SDL_keycode.h>
 #include <SDL_opengl.h>
 #include <SDL_shape.h>
@@ -6,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <ctime>
+#include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/scalar_constants.hpp>
 #include <glm/fwd.hpp>
@@ -24,6 +26,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#define PI 3.14159265358979323846f
 #define EQ_TRI_RATIO 0.86602540
 
 #include "Application.h"
@@ -103,7 +106,7 @@ namespace RT {
                 m_glContext = SDL_GL_CreateContext(m_WindowHandle);
 		if( m_glContext == NULL )
 		{
-			printf( "OpenGL context could not be created! SDL Error: %s\n", SDL_GetError() );
+			printf("OpenGL context could not be created! SDL Error: %s\n", SDL_GetError());
                         delete this;
 			return;
 		}
@@ -137,23 +140,9 @@ namespace RT {
 		SDL_GL_MakeCurrent(m_WindowHandle, m_glContext);
 
                 // Generate opengl shader program
-		// GenCircle(0.25f, 36, &RenderData);
-		GenQuad(0.2f, 1.0f, 1.0f, &RenderData);
-		// GenTri(1.0f, EQ_TRI_RATIO * 0.8f, 0.4f, 0.4f, &RenderData);
-
                 glViewport((m_Specification.Width - m_Specification.Height) * 0.5, 0, m_Specification.Height, m_Specification.Height);  // TEMP
                 glClearColor(0.04f, 0.02f, 0.08f, 1.0f);
                 glClear(GL_COLOR_BUFFER_BIT);
-		#ifdef defined(WL_DIST) && defined(WL_PLATFORM_WINDOWS)
-		GenTexture(&Image, "assets\\textures\\16xsi.png");
-		m_ShaderProgram = CreateShaderProgram("shaders\\shader.vert", "shaders\\shader.frag");
-		#else
-		GenTexture(&Image, "assets/textures/16xsi.png", 0);
-		GenTexture(&Image, "assets/textures/500_yen_bicolor_clad_coin_obverse.jpg", 1);
-		m_ShaderProgram = CreateShaderProgram("shaders/shader.vert", "shaders/shader.frag");
-		#endif
-		glUseProgram(m_ShaderProgram);
-		
                 // Gui = new GUI(m_WindowHandle);
         }
 	
@@ -176,52 +165,76 @@ namespace RT {
 
         void Application::Run() {
 		// TODO: Split gl function calls into proper classes
-		m_Running = true;
+                m_Running = true;
+		// GenQuad(1.5f, 1.0f, 1.0f, &RenderData);
+		GenCube(0.5f, 1.0f, 1.0f, 1.0f, &RenderData);
+                #ifdef defined(WL_DIST) && defined(WL_PLATFORM_WINDOWS)
+                GenTexture(&Image, "assets\\textures\\16xsi.png", 0);
+		m_ShaderProgram = CreateShaderProgram("shaders\\shader.vert", "shaders\\shader.frag");
+		#else
+		// GenTexture(&Image, "assets/textures/16xsi.png", 0);
+		GenTexture(&Image, "assets/textures/awesomeface.png", 0);
+		GenTexture(&Image, "assets/textures/500_yen_bicolor_clad_coin_obverse.jpg", 1);
+		m_ShaderProgram = CreateShaderProgram("shaders/shader.vert", "shaders/shader.frag");
+		#endif
 		
-                glm::mat4 trans;
+		// GenCircle(0.25f, 36, &RenderData);
+		// GenTri(1.0f, EQ_TRI_RATIO * 0.8f, 0.4f, 0.4f, &RenderData);
+		// glUseProgram(m_ShaderProgram);
                 glUseProgram(m_ShaderProgram);
 	        glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex"), 0);
-                glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex2"), 1);
-		glBindVertexArray(vao[0]);
+                // glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex2"), 1);
+                glBindVertexArray(vao[0]);
+		
+                glm::mat4 trans, model, view, projection;
+		trans = glm::rotate(Identity, glm::radians(-90.0f), glm::vec3(0.0, 0.0, -0.5));
+		// model = glm::rotate(Identity, glm::radians(-90.0f), glm::vec3(0.0, 0.0, -0.5));
+		view = glm::translate(Identity, glm::vec3(0.0f, 0.0f, -2.75f));
+		projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
 
                 while (m_Running) {
-			PollEvent();
+			PollEvent(&trans);
+			model = glm::rotate(trans, glm::radians(-90.0f), glm::vec3(0.0, 0.0, -0.5));
 			// glEnable(GL_DEBUG_OUTPUT);
 
-                        glClear(GL_COLOR_BUFFER_BIT);
+			glEnable(GL_DEPTH_TEST);
+                        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, Image.texture[0]);
-			glActiveTexture(GL_TEXTURE1);
-                        glBindTexture(GL_TEXTURE_2D, Image.texture[1]);
+			// glActiveTexture(GL_TEXTURE1);
+                        // glBindTexture(GL_TEXTURE_2D, Image.texture[1]);
 			
 			float time = GetTime();
 			float u_time = glGetUniformLocation(m_ShaderProgram, "u_time");
 			float u_time2 = glGetUniformLocation(m_ShaderProgram, "u_time2");
                         glUniform1f(u_time, time);
                         glUniform1f(u_time2, time);
+
+			// trans = glm::translate(Identity, glm::vec3(0.0f, -0.6f, 0.0f));
+			// trans = glm::rotate(trans, glm::radians(-(time * 50 + (float) (cos(time) * 20 + 30))), glm::vec3(0.5, 0.5, 0.5));
+			// trans = glm::scale(trans, glm::vec3(1,1,1));
+			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_model"), 1, GL_FALSE, glm::value_ptr(model));
+			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_view"), 1, GL_FALSE, glm::value_ptr(view));
+			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_projection"), 1, GL_FALSE, glm::value_ptr(projection));
 			
-			trans = glm::translate(Identity, glm::vec3(0.0f, -0.5f, 0.0f));
-			trans = glm::rotate(trans, glm::radians(-(time * 50 + (float) (cos(time) * 20 + 30))), glm::vec3(0.5, 0.5, 0.5));
-			trans = glm::scale(trans, glm::vec3(2,2,2));
-			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_trans"), 1, GL_FALSE, glm::value_ptr(trans));
 			glDrawElements(GL_TRIANGLES, RenderData.idx.size(), GL_UNSIGNED_INT, 0);
+			// glDrawElements(GL_TRIANGLES, RenderData.idx.size() - 36, GL_UNSIGNED_INT, 36);
+			// glUniform1f(u_time2, time + 9);
+			// trans = glm::translate(Identity, glm::vec3(0.5, 0.0, 0.0));
+			// trans = glm::rotate(trans, glm::radians(time * 50 + (float) (sin(time) * 20 + 30)), glm::vec3(0.5, 0.5, 0.5));
+			// trans = glm::scale(trans, glm::vec3(2,2,2));
+			// glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_trans"), 1, GL_FALSE, glm::value_ptr(trans));
 
-
-			glUniform1f(u_time2, time + 9);
-			trans = glm::translate(Identity, glm::vec3(0.5, 0.0, 0.0));
-			trans = glm::rotate(trans, glm::radians(time * 50 + (float) (sin(time) * 20 + 30)), glm::vec3(0.5, 0.5, 0.5));
-			trans = glm::scale(trans, glm::vec3(2,2,2));
-			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_trans"), 1, GL_FALSE, glm::value_ptr(trans));
-
-			glDrawElements(GL_TRIANGLES, RenderData.idx.size(), GL_UNSIGNED_INT, 0);
+			// glDrawElements(GL_TRIANGLES, RenderData.idx.size(), GL_UNSIGNED_INT, 0);
                         // Gui->Run();
 			
 			SDL_GL_SwapWindow(m_WindowHandle);
 		};
         }
 
-        void Application::PollEvent() {
+        void Application::PollEvent(glm::mat4 *matrix) {
 		SDL_Event event;
+		float x = 0, y = 0, dx = 0, dy = 0;
 		while (SDL_PollEvent(&event)) {
 			// ImGui_ImplSDL2_ProcessEvent(&event);
 			if (event.type == SDL_QUIT)
@@ -233,8 +246,21 @@ namespace RT {
                         if (event.type == SDL_WINDOWEVENT_RESIZED) {
 				SDL_GetWindowSize(m_WindowHandle, &(m_Specification.Width), &(m_Specification.Height));
 				glViewport(0, 0, m_Specification.Width, m_Specification.Height);
-			};
-
+                        };
+                        if (event.type == SDL_KEYDOWN) {
+				// x = dx, y = dy;
+				// dx += event.motion.y / 720.0f;
+                                // dy += event.motion.x / 720.0f;
+				// std::cout << "dx: " << dx << "dy: " << dy << std::endl;
+                                if (event.key.keysym.sym == SDLK_UP)
+					*matrix = glm::rotate(*matrix, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+				else if (event.key.keysym.sym == SDLK_DOWN)
+					*matrix = glm::rotate(*matrix, glm::radians(-10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+				if (event.key.keysym.sym == SDLK_RIGHT)
+					*matrix = glm::rotate(*matrix, glm::radians(10.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+				else if (event.key.keysym.sym == SDLK_LEFT)
+					*matrix = glm::rotate(*matrix, glm::radians(-10.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+                        };
 		};
         }
 
@@ -255,14 +281,14 @@ namespace RT {
 		glBindTexture(GL_TEXTURE_2D, Image->texture[index]);
 		
 		// set the texture wrapping/filtering options (on the currently bound texture object)
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		
 		if (Image->data) {
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, Image->width, Image->height, 0, GL_RGB, GL_UNSIGNED_BYTE, Image->data);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Image->width, Image->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, Image->data);
                         glGenerateMipmap(GL_TEXTURE_2D);
                 } else {
 			std::cout << "Failed to load texture!" << std::endl;
@@ -449,7 +475,7 @@ namespace RT {
 
         }
 	
-	void Application::GenQuad(float scale, float width, float height, struct RenderData* RenderData) {
+	void Application::GenQuad(float scale, float width, float height, struct RenderData* RenderData, float z) {
 		const float n_width = width * scale * 0.5;
 		const float n_height = height * scale * 0.5;
 		RenderData->vert.clear();
@@ -459,10 +485,10 @@ namespace RT {
 		RenderData->uv.reserve(RenderData->vert.size() + 4);
 		RenderData->idx.reserve(RenderData->vert.size() + 6);
 
-		RenderData->vert.push_back(glm::vec3(n_width, n_height, 0.0f));  // top right
-		RenderData->vert.push_back(glm::vec3(n_width, -n_height, 0.0f));  // bot right
-		RenderData->vert.push_back(glm::vec3(-n_width, -n_height, 0.0f));  // bot left
-		RenderData->vert.push_back(glm::vec3(-n_width, n_height, 0.0f));   // top left
+		RenderData->vert.push_back(glm::vec3(n_width, n_height, z));  // top right
+		RenderData->vert.push_back(glm::vec3(n_width, -n_height, z));  // bot right
+		RenderData->vert.push_back(glm::vec3(-n_width, -n_height, z));  // bot left
+		RenderData->vert.push_back(glm::vec3(-n_width, n_height, z));   // top left
 	  
 		RenderData->idx.push_back(0);
 		RenderData->idx.push_back(1);
@@ -474,6 +500,111 @@ namespace RT {
 		RenderData->uv.push_back(glm::vec2(1.0f, 1.0f));  // top right
 		RenderData->uv.push_back(glm::vec2(1.0f, 0.0f));  // bot right
 		RenderData->uv.push_back(glm::vec2(0.0f, 0.0f));  // bot left
+                RenderData->uv.push_back(glm::vec2(0.0f, 1.0f));  // top left
+        }
+	
+	void Application::GenCube(float scale, float width, float height, float length, struct RenderData* RenderData) {
+		// TODO: Fix vertex indices
+		const float n_width = width * scale * 0.5;
+                const float n_height = height * scale * 0.5;
+                const float n_length = length * scale * 0.5;
+		// const int uvOffset = 36;
+		
+		RenderData->vert.clear();
+		RenderData->uv.clear();
+		RenderData->idx.clear();
+		RenderData->vert.reserve(RenderData->vert.size() + 8);
+		RenderData->uv.reserve(RenderData->vert.size() + 4);
+		RenderData->idx.reserve(RenderData->vert.size() + 36);
+
+		// Orthogonal to xz plane
+		// Back
+		RenderData->vert.push_back(glm::vec3(n_width, n_height, -n_length));  // top right
+		RenderData->vert.push_back(glm::vec3(n_width, -n_height, -n_length));  // bot right
+		RenderData->vert.push_back(glm::vec3(-n_width, -n_height, -n_length));  // bot left
+		RenderData->vert.push_back(glm::vec3(-n_width, n_height, -n_length));   // top left
+		
+		// Front
+		RenderData->vert.push_back(glm::vec3(n_width, n_height, n_length));  // top right
+		RenderData->vert.push_back(glm::vec3(n_width, -n_height, n_length));  // bot right
+		RenderData->vert.push_back(glm::vec3(-n_width, -n_height, n_length));  // bot left
+		RenderData->vert.push_back(glm::vec3(-n_width, n_height, n_length));   // top left
+
+		// Orthogonal to xy plane
+		// Top
+		RenderData->vert.push_back(glm::vec3(n_width, n_height, -n_length));  // top right
+		RenderData->vert.push_back(glm::vec3(n_width, n_height, n_length));  // bot right
+		RenderData->vert.push_back(glm::vec3(-n_width, n_height, n_length));   // bot left
+		RenderData->vert.push_back(glm::vec3(-n_width, n_height, -n_length));   // top left
+
+                // Bottom
+		RenderData->vert.push_back(glm::vec3(n_width, -n_height, -n_length));  // top right
+		RenderData->vert.push_back(glm::vec3(n_width, -n_height, n_length));  // bot right
+		RenderData->vert.push_back(glm::vec3(-n_width, -n_height, n_length));  // bot left
+		RenderData->vert.push_back(glm::vec3(-n_width, -n_height, -n_length));  // top left
+		
+		// Indicies
+                // back
+		RenderData->idx.push_back(0);
+		RenderData->idx.push_back(1);
+		RenderData->idx.push_back(2);
+		RenderData->idx.push_back(2);
+		RenderData->idx.push_back(3);
+                RenderData->idx.push_back(0);
+		// front
+		RenderData->idx.push_back(7);
+		RenderData->idx.push_back(6);
+		RenderData->idx.push_back(5);
+		RenderData->idx.push_back(5);
+		RenderData->idx.push_back(4);
+                RenderData->idx.push_back(7);
+		// left
+		RenderData->idx.push_back(7);
+		RenderData->idx.push_back(6);
+		RenderData->idx.push_back(2);
+		RenderData->idx.push_back(2);
+		RenderData->idx.push_back(3);
+                RenderData->idx.push_back(7);
+		// right
+		RenderData->idx.push_back(0);
+		RenderData->idx.push_back(1);
+		RenderData->idx.push_back(5);
+		RenderData->idx.push_back(5);
+		RenderData->idx.push_back(4);
+                RenderData->idx.push_back(0);
+		// top
+		RenderData->idx.push_back(8);
+		RenderData->idx.push_back(9);
+		RenderData->idx.push_back(10);
+		RenderData->idx.push_back(10);
+		RenderData->idx.push_back(11);
+                RenderData->idx.push_back(8);
+		// bot
+		RenderData->idx.push_back(12);
+		RenderData->idx.push_back(13);
+		RenderData->idx.push_back(14);
+		RenderData->idx.push_back(14);
+		RenderData->idx.push_back(15);
+                RenderData->idx.push_back(12);
+		
+		RenderData->uv.push_back(glm::vec2(1.0f, 1.0f));  // top right
+		RenderData->uv.push_back(glm::vec2(1.0f, 0.0f));  // bot right
+		RenderData->uv.push_back(glm::vec2(0.0f, 0.0f));  // bot left
+                RenderData->uv.push_back(glm::vec2(0.0f, 1.0f));  // top left
+				
 		RenderData->uv.push_back(glm::vec2(0.0f, 1.0f));  // top left
+		RenderData->uv.push_back(glm::vec2(0.0f, 0.0f));  // bot left
+		RenderData->uv.push_back(glm::vec2(1.0f, 0.0f));  // bot right
+		RenderData->uv.push_back(glm::vec2(1.0f, 1.0f));  // top right
+		
+		RenderData->uv.push_back(glm::vec2(1.0f, 1.0f));  // top right
+		RenderData->uv.push_back(glm::vec2(1.0f, 0.0f));  // bot right
+		RenderData->uv.push_back(glm::vec2(0.0f, 0.0f));  // bot left
+                RenderData->uv.push_back(glm::vec2(0.0f, 1.0f));  // top left
+
+		RenderData->uv.push_back(glm::vec2(1.0f, 1.0f));  // top right
+		RenderData->uv.push_back(glm::vec2(1.0f, 0.0f));  // bot right
+		RenderData->uv.push_back(glm::vec2(0.0f, 0.0f));  // bot left
+                RenderData->uv.push_back(glm::vec2(0.0f, 1.0f));  // top left
 	}
 }

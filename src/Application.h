@@ -38,7 +38,12 @@ namespace RT {
 			std::vector<glm::vec2> uv;
                         std::vector<VBOInt> off;
 			std::vector<GLuint> idx;
-		} RenderData;
+                } RenderData;
+
+                struct Vertex {
+			glm::vec3 pos;
+			glm::vec2 uv;
+		};
 
         public:
 		Application(const ApplicationSpecification &applicationSpecification = ApplicationSpecification());
@@ -48,7 +53,7 @@ namespace RT {
                 void Shutdown();
                 void Run();
 
-		void PollEvent();
+		void PollEvent(glm::mat4 *matrix);
                 void KeyCallback();
                 void MouseButtonCallback();
 
@@ -56,8 +61,9 @@ namespace RT {
 
                 // void Render();
 		void GenCircle(float radius, int vertCount, struct RenderData* RenderData);
-		void GenQuad(float scale, float width, float height, struct RenderData* RenderData);
+		void GenQuad(float scale, float width, float height, struct RenderData* RenderData, float z = 0.0f);
 		void GenTri(float scale, float top, float right, float left, struct RenderData* RenderData);
+		void GenCube(float scale, float width, float height, float length, struct RenderData* RenderData);
 		void GenTexture(struct ImageData* imageData, std::string path, int index);
 		GLuint CreateShaderProgram(const char* vertex_file_path, const char* fragment_file_path);
 
@@ -66,7 +72,7 @@ namespace RT {
 		// void GenTri(float scale, float top, float right, float left, std::vector<glm::vec3>* vertices, std::vector<glm::vec2>* uv = nullptr);
 
 		// void SetMenubarCallback(const std::function<void()>& menubarCallback) { m_MenubarCallback = menubarCallback; }
-              private:
+	private:
 		ApplicationSpecification m_Specification;
                 SDL_Window *m_WindowHandle = nullptr;
 		// SDL_Renderer* m_Renderer = nullptr;
