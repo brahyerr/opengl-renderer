@@ -11,6 +11,7 @@
 #include <SDL_keycode.h>
 #include <SDL_opengl.h>
 #include "GUI.h"
+#include "imgui.h"
 // #include "Shader.h"
 
 extern bool g_ApplicationRunning;
@@ -27,24 +28,19 @@ namespace RT {
 
         class Application {
         private:
-		typedef int VBOInt;
+		// typedef int VBOInt;
 		struct ImageData {
 			int width, height, nrChannels;
 			std::vector<unsigned int> texture;
 			unsigned char* data;
 		} Image;
-                struct RenderData {
-			std::vector<glm::vec3> vert;
-			std::vector<glm::vec2> uv;
-                        std::vector<VBOInt> off;
-			std::vector<GLuint> idx;
-                } RenderData;
 
                 struct Vertex {
 			glm::vec3 pos;
 			glm::vec2 uv;
-		};
-
+                };
+		std::vector<Vertex> vertices;
+		std::vector<GLuint> idx;
         public:
 		Application(const ApplicationSpecification &applicationSpecification = ApplicationSpecification());
                 ~Application();
@@ -60,10 +56,10 @@ namespace RT {
 		float GetTime();
 
                 // void Render();
-		void GenCircle(float radius, int vertCount, struct RenderData* RenderData);
-		void GenQuad(float scale, float width, float height, struct RenderData* RenderData, float z = 0.0f);
-		void GenTri(float scale, float top, float right, float left, struct RenderData* RenderData);
-		void GenCube(float scale, float width, float height, float length, struct RenderData* RenderData);
+		void GenCircle(float radius, int vertCount, std::vector<Vertex> &vertices);
+		void GenQuad(float scale, float width, float height, std::vector<Vertex> &vertices, float z = 0.0f);
+		void GenTri(float scale, float top, float right, float left, std::vector<Vertex> &vertices);
+		void GenCube(float scale, float width, float height, float length, std::vector<Vertex> &vertices);
 		void GenTexture(struct ImageData* imageData, std::string path, int index);
 		GLuint CreateShaderProgram(const char* vertex_file_path, const char* fragment_file_path);
 
@@ -92,7 +88,7 @@ namespace RT {
 		float m_FrameTime = 0.0f;
 		float m_LastFrameTime = 0.0f;
 
-		std::function<void()> m_MenubarCallback;
+                std::function<void()> m_MenubarCallback;
         };
 	// Implemented by CLIENT (aka. in main.cpp)
 	Application* CreateApplication(int argc, char** argv);

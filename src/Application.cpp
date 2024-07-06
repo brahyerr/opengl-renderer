@@ -8,12 +8,16 @@
 #include <cstddef>
 #include <ctime>
 #include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/scalar_constants.hpp>
+#include <glm/ext/vector_float3.hpp>
+#include <glm/ext/vector_float4.hpp>
 #include <glm/fwd.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <memory>
 #include <string>
 #include <chrono>
 #include <iostream>
@@ -90,7 +94,7 @@ namespace RT {
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 		SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 		SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-		SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_BORDERLESS | SDL_WINDOW_RESIZABLE);
+		SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_BORDERLESS);
 		m_WindowHandle = SDL_CreateWindow(
 			m_Specification.Name, SDL_WINDOWPOS_CENTERED,
 			SDL_WINDOWPOS_CENTERED, m_Specification.Width,
@@ -166,8 +170,7 @@ namespace RT {
         void Application::Run() {
 		// TODO: Split gl function calls into proper classes
                 m_Running = true;
-		// GenQuad(1.5f, 1.0f, 1.0f, &RenderData);
-		GenCube(0.5f, 1.0f, 1.0f, 1.0f, &RenderData);
+		GenCube(0.5f, 1.0f, 1.0f, 1.0f, vertices);
                 #ifdef defined(WL_DIST) && defined(WL_PLATFORM_WINDOWS)
                 GenTexture(&Image, "assets\\textures\\16xsi.png", 0);
 		m_ShaderProgram = CreateShaderProgram("shaders\\shader.vert", "shaders\\shader.frag");
@@ -178,8 +181,9 @@ namespace RT {
 		m_ShaderProgram = CreateShaderProgram("shaders/shader.vert", "shaders/shader.frag");
 		#endif
 		
-		// GenCircle(0.25f, 36, &RenderData);
-		// GenTri(1.0f, EQ_TRI_RATIO * 0.8f, 0.4f, 0.4f, &RenderData);
+		// GenQuad(1.5f, 1.0f, 1.0f, &Vertex);
+		// GenCircle(0.25f, 36, &Vertex);
+		// GenTri(1.0f, EQ_TRI_RATIO * 0.8f, 0.4f, 0.4f, &Vertex);
 		// glUseProgram(m_ShaderProgram);
                 glUseProgram(m_ShaderProgram);
 	        glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex"), 0);
@@ -187,16 +191,43 @@ namespace RT {
                 glBindVertexArray(vao[0]);
 		
                 glm::mat4 trans, model, view, projection;
-		trans = glm::rotate(Identity, glm::radians(-90.0f), glm::vec3(0.0, 0.0, -0.5));
+		trans = Identity;
+		// trans = glm::rotate(Identity, glm::radians(-90.0f), glm::vec3(0.0, 0.0, -0.5));
 		// model = glm::rotate(Identity, glm::radians(-90.0f), glm::vec3(0.0, 0.0, -0.5));
-		view = glm::translate(Identity, glm::vec3(0.0f, 0.0f, -2.75f));
+                glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+                glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+		
+		// glm::vec3 cameraDirection = glm::normalize(cameraPos - cameraTarget);
+		glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+		// glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
+                // glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
+		// view = glm::lookAt(cameraPos, cameraTarget, up);
 		projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
 
+                // Clones
+                std::array<glm::vec3, 10> cubeClones = {
+			glm::vec3( 0.0f,  0.0f,  0.0f), 
+			glm::vec3( 2.0f,  5.0f, -15.0f), 
+			glm::vec3(-1.5f, -2.2f, -2.5f),  
+			glm::vec3(-3.8f, -2.0f, -12.3f),  
+			glm::vec3( 2.4f, -0.4f, -3.5f),  
+			glm::vec3(-1.7f,  3.0f, -7.5f),  
+			glm::vec3( 1.3f, -2.0f, -2.5f),  
+			glm::vec3( 1.5f,  2.0f, -2.5f), 
+			glm::vec3( 1.5f,  0.2f, -1.5f), 
+			glm::vec3(-1.3f,  1.0f, -1.5f)  
+		};
+
+                const float radius = 8.0f;
+		float camX, camY, camZ;
                 while (m_Running) {
 			PollEvent(&trans);
-			model = glm::rotate(trans, glm::radians(-90.0f), glm::vec3(0.0, 0.0, -0.5));
 			// glEnable(GL_DEBUG_OUTPUT);
-
+                        camX = sin(GetTime()) * radius;
+			camY = 1.0f + sin(GetTime()) * 0.1f;
+			camZ = cos(GetTime()) * radius;
+			view = glm::lookAt(glm::vec3(camX, 0.0f, camZ), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, camY, camZ * 0.1f));
+			
 			glEnable(GL_DEPTH_TEST);
                         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glActiveTexture(GL_TEXTURE0);
@@ -213,19 +244,30 @@ namespace RT {
 			// trans = glm::translate(Identity, glm::vec3(0.0f, -0.6f, 0.0f));
 			// trans = glm::rotate(trans, glm::radians(-(time * 50 + (float) (cos(time) * 20 + 30))), glm::vec3(0.5, 0.5, 0.5));
 			// trans = glm::scale(trans, glm::vec3(1,1,1));
-			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_model"), 1, GL_FALSE, glm::value_ptr(model));
-			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_view"), 1, GL_FALSE, glm::value_ptr(view));
-			glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_projection"), 1, GL_FALSE, glm::value_ptr(projection));
+			// glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_model"), 1, GL_FALSE, glm::value_ptr(model));
+			// glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_view"), 1, GL_FALSE, glm::value_ptr(view));
+			// glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_projection"), 1, GL_FALSE, glm::value_ptr(projection));
 			
-			glDrawElements(GL_TRIANGLES, RenderData.idx.size(), GL_UNSIGNED_INT, 0);
-			// glDrawElements(GL_TRIANGLES, RenderData.idx.size() - 36, GL_UNSIGNED_INT, 36);
+			// model = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0, 0.0, -0.5));
+                        for (int i = 0; i < 10; i++) {
+				model = glm::rotate(trans, 0.0f, glm::vec3(1.0f, 1.0f, 1.0f));
+                                model = glm::translate(model, cubeClones[i]);
+                                float angle = 20.0f * i;
+				model = glm::rotate(model, angle, glm::vec3(1.0f, 1.0f, 0.0f));
+				glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_model"), 1, GL_FALSE, glm::value_ptr(model));
+				glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_view"), 1, GL_FALSE, glm::value_ptr(view));
+				glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_projection"), 1, GL_FALSE, glm::value_ptr(projection));
+				glDrawElements(GL_TRIANGLES, idx.size(), GL_UNSIGNED_INT, 0);
+			};
+
+			// glDrawElements(GL_TRIANGLES, Vertex.idx.size() - 36, GL_UNSIGNED_INT, 36);
 			// glUniform1f(u_time2, time + 9);
 			// trans = glm::translate(Identity, glm::vec3(0.5, 0.0, 0.0));
 			// trans = glm::rotate(trans, glm::radians(time * 50 + (float) (sin(time) * 20 + 30)), glm::vec3(0.5, 0.5, 0.5));
 			// trans = glm::scale(trans, glm::vec3(2,2,2));
 			// glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_trans"), 1, GL_FALSE, glm::value_ptr(trans));
 
-			// glDrawElements(GL_TRIANGLES, RenderData.idx.size(), GL_UNSIGNED_INT, 0);
+			// glDrawElements(GL_TRIANGLES, Vertex.idx.size(), GL_UNSIGNED_INT, 0);
                         // Gui->Run();
 			
 			SDL_GL_SwapWindow(m_WindowHandle);
@@ -253,13 +295,13 @@ namespace RT {
                                 // dy += event.motion.x / 720.0f;
 				// std::cout << "dx: " << dx << "dy: " << dy << std::endl;
                                 if (event.key.keysym.sym == SDLK_UP)
-					*matrix = glm::rotate(*matrix, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-				else if (event.key.keysym.sym == SDLK_DOWN)
-					*matrix = glm::rotate(*matrix, glm::radians(-10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-				if (event.key.keysym.sym == SDLK_RIGHT)
-					*matrix = glm::rotate(*matrix, glm::radians(10.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-				else if (event.key.keysym.sym == SDLK_LEFT)
 					*matrix = glm::rotate(*matrix, glm::radians(-10.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+				else if (event.key.keysym.sym == SDLK_DOWN)
+					*matrix = glm::rotate(*matrix, glm::radians(10.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+				if (event.key.keysym.sym == SDLK_RIGHT)
+					*matrix = glm::rotate(*matrix, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+				else if (event.key.keysym.sym == SDLK_LEFT)
+					*matrix = glm::rotate(*matrix, glm::radians(-10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                         };
 		};
         }
@@ -379,35 +421,24 @@ namespace RT {
 		glDeleteShader(VertexShaderID);
                 glDeleteShader(FragmentShaderID);
 
-                // LearnOpenGL Stuff below
-
-		vao.resize(1); vbo.resize(2);
+		vao.resize(1); vbo.resize(1);
 		glGenVertexArrays(vao.size(), vao.data());
                 glGenBuffers(vbo.size(), vbo.data());
 		
                 glBindVertexArray(vao[0]);
                 glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * RenderData.vert.size(), RenderData.vert.data(), GL_STATIC_DRAW);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(0 * (sizeof(float))));
+		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(0));
                 glEnableVertexAttribArray(0);
 
-		// Color attribute
-		// glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * (sizeof(float))));
-                // glEnableVertexAttribArray(1);
-
-		// UV attribute
-		// glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * (sizeof(float))));
-		// glEnableVertexAttribArray(2);
-                glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(std::vector<glm::vec3>) * RenderData.uv.size(), RenderData.uv.data(), GL_STATIC_DRAW);
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(Vertex().pos)));
 		glEnableVertexAttribArray(1);
 
                 // Element array buffer - This is bound automatically to the current vao, meaning a vao must be currently bound first
 		eab.resize(1);
                 glGenBuffers(eab.size(), eab.data());
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eab[0]);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(std::vector<GLuint>) * RenderData.idx.size(), RenderData.idx.data(), GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(std::vector<GLuint>) * idx.size(), idx.data(), GL_STATIC_DRAW);
 
 		//                     Loc Size  Type    Normalize      Stride        Pos offset
 		// glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
@@ -415,196 +446,194 @@ namespace RT {
                 return ProgramID;
 	}
 
-	void Application::GenCircle(float radius, int vertCount, struct RenderData* RenderData) {
-		const int tri_count = vertCount - 2;
-		const float angle = 360.0f / vertCount;
-		const float pi = glm::pi<float>();
+	void Application::GenCircle(float radius, int vertCount, std::vector<Vertex> &vertices) {
+		const int TriCount = vertCount - 2;
+		const float Angle = 360.0f / vertCount;
+		// const float PI = glm::pi<float>();
                 float theta, x, y;
 		
-		RenderData->vert.clear();
-		RenderData->uv.clear();
-		RenderData->idx.clear();
-		RenderData->vert.reserve(RenderData->vert.size() + vertCount);
-		RenderData->uv.reserve(RenderData->vert.size() + vertCount);
-                RenderData->idx.reserve(RenderData->vert.size() + tri_count);
+		vertices.clear();
+		idx.clear();
+		vertices.reserve(vertCount);
+		idx.reserve(vertCount);
 		
                 for (int i = 0; i < vertCount; i++) {
-			theta = i * angle;
+			theta = i * Angle;
 			x = radius * cos(glm::radians(theta));
 			y = radius * sin(glm::radians(theta));
-			RenderData->vert.push_back(glm::vec3(x, y, 0.0f));
-			RenderData->uv.push_back(glm::vec2(0.0f + 1.0f * (x / radius + 1) * 0.5f, 0.0f + 1.0f * (y / radius + 1)*0.5f));
+                        vertices.push_back(Vertex());
+			vertices[i].pos = (glm::vec3(x, y, 0.0f));
+			vertices[i].uv = (glm::vec2(0.0f + 1.0f * (x / radius + 1) * 0.5f, 0.0f + 1.0f * (y / radius + 1)*0.5f));
 			// uv->push_back(glm::vec2(1.2 * ((cos(glm::radians(theta))+1) * 0.5), (1.2 * (cos((glm::radians(theta))-pi*1.5)+1) * 0.5)));
 			// std::cout << "(" << uv[0][i].y << ", " << uv[0][i].y << ")" << std::endl;
-                        if (i < tri_count) {
-				RenderData->idx.push_back(0);
-				RenderData->idx.push_back(i+1);
-				RenderData->idx.push_back(i+2);
+                        if (i < TriCount) {
+				idx.push_back(0);
+				idx.push_back(i+1);
+				idx.push_back(i+2);
 			};
                 }
         }
 	
-	void Application::GenTri(float scale, float top, float right, float left, struct RenderData* RenderData) {
+	void Application::GenTri(float scale, float top, float right, float left, std::vector<Vertex> &vertices) {
 		// origin is aligned with the top y axis
 		// so right is right from top, and left is left from top
 		const float n_top = top * scale * 0.25;
 		const float n_right = right * scale * 0.5;
 		const float n_left = -left * scale * 0.5;
-		RenderData->vert.clear();
-		RenderData->uv.clear();
-		RenderData->idx.clear();
-		RenderData->vert.reserve(RenderData->vert.size() + 3);
-		RenderData->uv.reserve(RenderData->vert.size() + 3);
-		RenderData->idx.reserve(RenderData->vert.size() + 3);
-
-		RenderData->vert.push_back(glm::vec3(0.0f, n_top, 0.0f));  // top
-		RenderData->vert.push_back(glm::vec3(n_right, -n_top, 0.0f));  // right
-		RenderData->vert.push_back(glm::vec3(n_left, -n_top, 0.0f));  // left
+		vertices.clear();
+                idx.clear();
+		vertices.reserve(3);
+                idx.reserve(3);
 		
-		// RenderData->vert.push_back(glm::vec3(0.0f, 0.5f, 0.0f));  // top
-		// RenderData->vert.push_back(glm::vec3( 0.5f, -0.5f, 0.0f));  // right
-		// RenderData->vert.push_back(glm::vec3(-0.5f, -0.5f, 0.0f));  // left
+                vertices.push_back(Vertex());
+                vertices.push_back(Vertex());
+                vertices.push_back(Vertex());
 		
-		RenderData->uv.push_back(glm::vec2(0.5f, 1.0f));  // top
-		RenderData->uv.push_back(glm::vec2(1.0f, 0.0f));  // right
-		RenderData->uv.push_back(glm::vec2(0.0f, 0.0f));  // left
+                vertices[0].pos = (glm::vec3(0.0f, n_top, 0.0f));  // top
+		vertices[1].pos = (glm::vec3(n_right, -n_top, 0.0f));  // right
+		vertices[2].pos = (glm::vec3(n_left, -n_top, 0.0f));  // left
+		vertices[0].uv = (glm::vec2(0.5f, 1.0f));  // top
+		vertices[1].uv = (glm::vec2(1.0f, 0.0f));  // right
+		vertices[2].uv = (glm::vec2(0.0f, 0.0f));  // left
 	  
-		RenderData->idx.push_back(0);
-		RenderData->idx.push_back(1);
-		RenderData->idx.push_back(2);
-
+		idx.push_back(0);
+		idx.push_back(1);
+		idx.push_back(2);
         }
 	
-	void Application::GenQuad(float scale, float width, float height, struct RenderData* RenderData, float z) {
+	void Application::GenQuad(float scale, float width, float height, std::vector<Vertex> &vertices, float z) {
 		const float n_width = width * scale * 0.5;
 		const float n_height = height * scale * 0.5;
-		RenderData->vert.clear();
-		RenderData->uv.clear();
-		RenderData->idx.clear();
-		RenderData->vert.reserve(RenderData->vert.size() + 4);
-		RenderData->uv.reserve(RenderData->vert.size() + 4);
-		RenderData->idx.reserve(RenderData->vert.size() + 6);
+		vertices.clear();
+		idx.clear();
+		vertices.reserve(4);
+		idx.reserve(6);
 
-		RenderData->vert.push_back(glm::vec3(n_width, n_height, z));  // top right
-		RenderData->vert.push_back(glm::vec3(n_width, -n_height, z));  // bot right
-		RenderData->vert.push_back(glm::vec3(-n_width, -n_height, z));  // bot left
-		RenderData->vert.push_back(glm::vec3(-n_width, n_height, z));   // top left
+                for (int i = 0; i < 4; i++)
+			vertices.push_back(Vertex());
+		
+                vertices[0].pos = glm::vec3(n_width, n_height, z);  // top right
+		vertices[1].pos = glm::vec3(n_width, -n_height, z);  // bot right
+		vertices[2].pos = glm::vec3(-n_width, -n_height, z);  // bot left
+		vertices[3].pos = glm::vec3(-n_width, n_height, z);   // top left
+		
+		vertices[0].uv = glm::vec2(1.0f, 1.0f);  // top right
+		vertices[1].uv = glm::vec2(1.0f, 0.0f);  // bot right
+	        vertices[2].uv = glm::vec2(0.0f, 0.0f);  // bot left
+                vertices[3].uv = glm::vec2(0.0f, 1.0f);  // top left
 	  
-		RenderData->idx.push_back(0);
-		RenderData->idx.push_back(1);
-		RenderData->idx.push_back(2);
-		RenderData->idx.push_back(2);
-		RenderData->idx.push_back(3);
-		RenderData->idx.push_back(0);
+		idx.push_back(0);
+		idx.push_back(1);
+		idx.push_back(2);
+		idx.push_back(2);
+		idx.push_back(3);
+		idx.push_back(0);
 
-		RenderData->uv.push_back(glm::vec2(1.0f, 1.0f));  // top right
-		RenderData->uv.push_back(glm::vec2(1.0f, 0.0f));  // bot right
-		RenderData->uv.push_back(glm::vec2(0.0f, 0.0f));  // bot left
-                RenderData->uv.push_back(glm::vec2(0.0f, 1.0f));  // top left
         }
 	
-	void Application::GenCube(float scale, float width, float height, float length, struct RenderData* RenderData) {
+	void Application::GenCube(float scale, float width, float height, float length, std::vector<Vertex> &vertices) {
 		// TODO: Fix vertex indices
 		const float n_width = width * scale * 0.5;
                 const float n_height = height * scale * 0.5;
                 const float n_length = length * scale * 0.5;
 		// const int uvOffset = 36;
 		
-		RenderData->vert.clear();
-		RenderData->uv.clear();
-		RenderData->idx.clear();
-		RenderData->vert.reserve(RenderData->vert.size() + 8);
-		RenderData->uv.reserve(RenderData->vert.size() + 4);
-		RenderData->idx.reserve(RenderData->vert.size() + 36);
+		vertices.clear();
+		idx.clear();
+		vertices.reserve(8);
+		idx.reserve(36);
 
+                for (int i = 0; i < 16; i++)
+			vertices.push_back(Vertex());
+		
 		// Orthogonal to xz plane
 		// Back
-		RenderData->vert.push_back(glm::vec3(n_width, n_height, -n_length));  // top right
-		RenderData->vert.push_back(glm::vec3(n_width, -n_height, -n_length));  // bot right
-		RenderData->vert.push_back(glm::vec3(-n_width, -n_height, -n_length));  // bot left
-		RenderData->vert.push_back(glm::vec3(-n_width, n_height, -n_length));   // top left
+		vertices[0].pos = (glm::vec3(n_width, n_height, -n_length));  // top right
+		vertices[1].pos = (glm::vec3(n_width, -n_height, -n_length));  // bot right
+		vertices[2].pos = (glm::vec3(-n_width, -n_height, -n_length));  // bot left
+		vertices[3].pos = (glm::vec3(-n_width, n_height, -n_length));   // top left
 		
 		// Front
-		RenderData->vert.push_back(glm::vec3(n_width, n_height, n_length));  // top right
-		RenderData->vert.push_back(glm::vec3(n_width, -n_height, n_length));  // bot right
-		RenderData->vert.push_back(glm::vec3(-n_width, -n_height, n_length));  // bot left
-		RenderData->vert.push_back(glm::vec3(-n_width, n_height, n_length));   // top left
+		vertices[4].pos = (glm::vec3(n_width, n_height, n_length));  // top right
+		vertices[5].pos = (glm::vec3(n_width, -n_height, n_length));  // bot right
+		vertices[6].pos = (glm::vec3(-n_width, -n_height, n_length));  // bot left
+		vertices[7].pos = (glm::vec3(-n_width, n_height, n_length));   // top left
 
 		// Orthogonal to xy plane
 		// Top
-		RenderData->vert.push_back(glm::vec3(n_width, n_height, -n_length));  // top right
-		RenderData->vert.push_back(glm::vec3(n_width, n_height, n_length));  // bot right
-		RenderData->vert.push_back(glm::vec3(-n_width, n_height, n_length));   // bot left
-		RenderData->vert.push_back(glm::vec3(-n_width, n_height, -n_length));   // top left
+		vertices[8].pos = (glm::vec3(n_width, n_height, -n_length));  // top right
+		vertices[9].pos = (glm::vec3(n_width, n_height, n_length));  // bot right
+		vertices[10].pos = (glm::vec3(-n_width, n_height, n_length));   // bot left
+		vertices[11].pos = (glm::vec3(-n_width, n_height, -n_length));   // top left
 
                 // Bottom
-		RenderData->vert.push_back(glm::vec3(n_width, -n_height, -n_length));  // top right
-		RenderData->vert.push_back(glm::vec3(n_width, -n_height, n_length));  // bot right
-		RenderData->vert.push_back(glm::vec3(-n_width, -n_height, n_length));  // bot left
-		RenderData->vert.push_back(glm::vec3(-n_width, -n_height, -n_length));  // top left
+		vertices[12].pos = (glm::vec3(n_width, -n_height, -n_length));  // top right
+		vertices[13].pos = (glm::vec3(n_width, -n_height, n_length));  // bot right
+		vertices[14].pos = (glm::vec3(-n_width, -n_height, n_length));  // bot left
+		vertices[15].pos = (glm::vec3(-n_width, -n_height, -n_length));  // top left
 		
 		// Indicies
                 // back
-		RenderData->idx.push_back(0);
-		RenderData->idx.push_back(1);
-		RenderData->idx.push_back(2);
-		RenderData->idx.push_back(2);
-		RenderData->idx.push_back(3);
-                RenderData->idx.push_back(0);
+		idx.push_back(0);
+		idx.push_back(1);
+		idx.push_back(2);
+		idx.push_back(2);
+		idx.push_back(3);
+                idx.push_back(0);
 		// front
-		RenderData->idx.push_back(7);
-		RenderData->idx.push_back(6);
-		RenderData->idx.push_back(5);
-		RenderData->idx.push_back(5);
-		RenderData->idx.push_back(4);
-                RenderData->idx.push_back(7);
+		idx.push_back(7);
+		idx.push_back(6);
+		idx.push_back(5);
+		idx.push_back(5);
+		idx.push_back(4);
+                idx.push_back(7);
 		// left
-		RenderData->idx.push_back(7);
-		RenderData->idx.push_back(6);
-		RenderData->idx.push_back(2);
-		RenderData->idx.push_back(2);
-		RenderData->idx.push_back(3);
-                RenderData->idx.push_back(7);
+		idx.push_back(7);
+		idx.push_back(6);
+		idx.push_back(2);
+		idx.push_back(2);
+		idx.push_back(3);
+                idx.push_back(7);
 		// right
-		RenderData->idx.push_back(0);
-		RenderData->idx.push_back(1);
-		RenderData->idx.push_back(5);
-		RenderData->idx.push_back(5);
-		RenderData->idx.push_back(4);
-                RenderData->idx.push_back(0);
+		idx.push_back(0);
+		idx.push_back(1);
+		idx.push_back(5);
+		idx.push_back(5);
+		idx.push_back(4);
+                idx.push_back(0);
 		// top
-		RenderData->idx.push_back(8);
-		RenderData->idx.push_back(9);
-		RenderData->idx.push_back(10);
-		RenderData->idx.push_back(10);
-		RenderData->idx.push_back(11);
-                RenderData->idx.push_back(8);
+		idx.push_back(8);
+		idx.push_back(9);
+		idx.push_back(10);
+		idx.push_back(10);
+		idx.push_back(11);
+                idx.push_back(8);
 		// bot
-		RenderData->idx.push_back(12);
-		RenderData->idx.push_back(13);
-		RenderData->idx.push_back(14);
-		RenderData->idx.push_back(14);
-		RenderData->idx.push_back(15);
-                RenderData->idx.push_back(12);
+		idx.push_back(12);
+		idx.push_back(13);
+		idx.push_back(14);
+		idx.push_back(14);
+		idx.push_back(15);
+                idx.push_back(12);
 		
-		RenderData->uv.push_back(glm::vec2(1.0f, 1.0f));  // top right
-		RenderData->uv.push_back(glm::vec2(1.0f, 0.0f));  // bot right
-		RenderData->uv.push_back(glm::vec2(0.0f, 0.0f));  // bot left
-                RenderData->uv.push_back(glm::vec2(0.0f, 1.0f));  // top left
+		vertices[0].uv = (glm::vec2(1.0f, 1.0f));  // top right
+		vertices[1].uv = (glm::vec2(1.0f, 0.0f));  // bot right
+		vertices[2].uv = (glm::vec2(0.0f, 0.0f));  // bot left
+                vertices[3].uv = (glm::vec2(0.0f, 1.0f));  // top left
 				
-		RenderData->uv.push_back(glm::vec2(0.0f, 1.0f));  // top left
-		RenderData->uv.push_back(glm::vec2(0.0f, 0.0f));  // bot left
-		RenderData->uv.push_back(glm::vec2(1.0f, 0.0f));  // bot right
-		RenderData->uv.push_back(glm::vec2(1.0f, 1.0f));  // top right
+		vertices[4].uv = (glm::vec2(0.0f, 1.0f));  // top left
+		vertices[5].uv = (glm::vec2(0.0f, 0.0f));  // bot left
+		vertices[6].uv = (glm::vec2(1.0f, 0.0f));  // bot right
+		vertices[7].uv = (glm::vec2(1.0f, 1.0f));  // top right
 		
-		RenderData->uv.push_back(glm::vec2(1.0f, 1.0f));  // top right
-		RenderData->uv.push_back(glm::vec2(1.0f, 0.0f));  // bot right
-		RenderData->uv.push_back(glm::vec2(0.0f, 0.0f));  // bot left
-                RenderData->uv.push_back(glm::vec2(0.0f, 1.0f));  // top left
+		vertices[8].uv = (glm::vec2(1.0f, 1.0f));  // top right
+		vertices[9].uv = (glm::vec2(1.0f, 0.0f));  // bot right
+		vertices[10].uv = (glm::vec2(0.0f, 0.0f));  // bot left
+                vertices[11].uv = (glm::vec2(0.0f, 1.0f));  // top left
 
-		RenderData->uv.push_back(glm::vec2(1.0f, 1.0f));  // top right
-		RenderData->uv.push_back(glm::vec2(1.0f, 0.0f));  // bot right
-		RenderData->uv.push_back(glm::vec2(0.0f, 0.0f));  // bot left
-                RenderData->uv.push_back(glm::vec2(0.0f, 1.0f));  // top left
+		vertices[12].uv = (glm::vec2(1.0f, 1.0f));  // top right
+		vertices[13].uv = (glm::vec2(1.0f, 0.0f));  // bot right
+		vertices[14].uv = (glm::vec2(0.0f, 0.0f));  // bot left
+                vertices[15].uv = (glm::vec2(0.0f, 1.0f));  // top left
 	}
 }
