@@ -49,7 +49,7 @@ namespace RT {
                 void Shutdown();
                 void Run();
 
-		void PollEvent(glm::mat4 *matrix);
+		void PollEvent(glm::vec3 &cameraPos, glm::vec3 &cameraFront, glm::vec3 &cameraUp, float &yaw, float &pitch);
                 void KeyCallback();
                 void MouseButtonCallback();
 

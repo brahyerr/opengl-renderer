@@ -1,7 +1,10 @@
 #include <GL/glew.h>
 #include <SDL_events.h>
+#include <SDL_keyboard.h>
 #include <SDL_keycode.h>
+#include <SDL_mouse.h>
 #include <SDL_opengl.h>
+#include <SDL_scancode.h>
 #include <SDL_shape.h>
 #include <SDL_video.h>
 #include <cmath>
@@ -40,6 +43,10 @@ static RT::Application *s_Instance = nullptr;
 static RT::GUI *Gui = nullptr;
 
 namespace RT {
+	// TEMP global variables
+	float deltaTime = 0.0f;
+        float currentTime = 0.0f;
+        float lastFrame = 0.0f;
 	Application::Application(const ApplicationSpecification &spec)
 		: m_Specification(spec) {
 		s_Instance = this;
@@ -51,7 +58,6 @@ namespace RT {
                 //         delete this;
 		// 	return;
 		// }
-		
 		// Setup SDL
                 if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
 		{
@@ -181,10 +187,6 @@ namespace RT {
 		m_ShaderProgram = CreateShaderProgram("shaders/shader.vert", "shaders/shader.frag");
 		#endif
 		
-		// GenQuad(1.5f, 1.0f, 1.0f, &Vertex);
-		// GenCircle(0.25f, 36, &Vertex);
-		// GenTri(1.0f, EQ_TRI_RATIO * 0.8f, 0.4f, 0.4f, &Vertex);
-		// glUseProgram(m_ShaderProgram);
                 glUseProgram(m_ShaderProgram);
 	        glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex"), 0);
                 // glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex2"), 1);
@@ -194,46 +196,55 @@ namespace RT {
 		trans = Identity;
 		// trans = glm::rotate(Identity, glm::radians(-90.0f), glm::vec3(0.0, 0.0, -0.5));
 		// model = glm::rotate(Identity, glm::radians(-90.0f), glm::vec3(0.0, 0.0, -0.5));
-                glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
-                glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
 		
+                glm::vec3 direction;
 		// glm::vec3 cameraDirection = glm::normalize(cameraPos - cameraTarget);
-		glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+		// glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
 		// glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
-                // glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
-		// view = glm::lookAt(cameraPos, cameraTarget, up);
+		// glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
+		
+		glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+                glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+                glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+		
 		projection = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
 
                 // Clones
                 std::array<glm::vec3, 10> cubeClones = {
-			glm::vec3( 0.0f,  0.0f,  0.0f), 
-			glm::vec3( 2.0f,  5.0f, -15.0f), 
-			glm::vec3(-1.5f, -2.2f, -2.5f),  
-			glm::vec3(-3.8f, -2.0f, -12.3f),  
-			glm::vec3( 2.4f, -0.4f, -3.5f),  
-			glm::vec3(-1.7f,  3.0f, -7.5f),  
-			glm::vec3( 1.3f, -2.0f, -2.5f),  
-			glm::vec3( 1.5f,  2.0f, -2.5f), 
-			glm::vec3( 1.5f,  0.2f, -1.5f), 
-			glm::vec3(-1.3f,  1.0f, -1.5f)  
+			glm::vec3( 0.0f,  0.0f,  0.0f),
+			glm::vec3( 2.0f,  5.0f, -15.0f),
+			glm::vec3(-1.5f, -2.2f, -2.5f),
+			glm::vec3(-3.8f, -2.0f, -12.3f), 
+			glm::vec3( 2.4f, -0.4f, -3.5f),
+			glm::vec3(-1.7f,  3.0f, -7.5f), 
+			glm::vec3( 1.3f, -2.0f, -2.5f), 
+			glm::vec3( 1.5f,  2.0f, -2.5f),
+			glm::vec3( 1.5f,  0.2f, -1.5f),
+			glm::vec3(-1.3f,  1.0f, -1.5f)
 		};
 
-                const float radius = 8.0f;
-		float camX, camY, camZ;
+                float camX, camY, camZ, angle;
+                float yaw = -90.0f;
+		float pitch = 0.0f;
                 while (m_Running) {
-			PollEvent(&trans);
 			// glEnable(GL_DEBUG_OUTPUT);
-                        camX = sin(GetTime()) * radius;
-			camY = 1.0f + sin(GetTime()) * 0.1f;
-			camZ = cos(GetTime()) * radius;
-			view = glm::lookAt(glm::vec3(camX, 0.0f, camZ), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, camY, camZ * 0.1f));
+			lastFrame = currentTime;
+			currentTime = GetTime();
+			deltaTime = currentTime - lastFrame;
+                        PollEvent(cameraPos, cameraFront, cameraUp, yaw, pitch);
+			direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+			direction.y = sin(glm::radians(pitch));
+			direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
 			
+			cameraFront = glm::normalize(direction);
+			// cameraFront = glm::vec3(direction.x, direction.y, direction.z - 5.5f);
+			view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+			// view = glm::lookAt(cameraPos, cameraPos + cameraTarget, up);
+
 			glEnable(GL_DEPTH_TEST);
                         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, Image.texture[0]);
-			// glActiveTexture(GL_TEXTURE1);
-                        // glBindTexture(GL_TEXTURE_2D, Image.texture[1]);
 			
 			float time = GetTime();
 			float u_time = glGetUniformLocation(m_ShaderProgram, "u_time");
@@ -241,18 +252,11 @@ namespace RT {
                         glUniform1f(u_time, time);
                         glUniform1f(u_time2, time);
 
-			// trans = glm::translate(Identity, glm::vec3(0.0f, -0.6f, 0.0f));
-			// trans = glm::rotate(trans, glm::radians(-(time * 50 + (float) (cos(time) * 20 + 30))), glm::vec3(0.5, 0.5, 0.5));
-			// trans = glm::scale(trans, glm::vec3(1,1,1));
-			// glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_model"), 1, GL_FALSE, glm::value_ptr(model));
-			// glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_view"), 1, GL_FALSE, glm::value_ptr(view));
-			// glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_projection"), 1, GL_FALSE, glm::value_ptr(projection));
-			
-			// model = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0, 0.0, -0.5));
+			model = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0, 0.0, -0.5));
                         for (int i = 0; i < 10; i++) {
 				model = glm::rotate(trans, 0.0f, glm::vec3(1.0f, 1.0f, 1.0f));
                                 model = glm::translate(model, cubeClones[i]);
-                                float angle = 20.0f * i;
+				angle = 20.0f * i;
 				model = glm::rotate(model, angle, glm::vec3(1.0f, 1.0f, 0.0f));
 				glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_model"), 1, GL_FALSE, glm::value_ptr(model));
 				glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_view"), 1, GL_FALSE, glm::value_ptr(view));
@@ -260,27 +264,24 @@ namespace RT {
 				glDrawElements(GL_TRIANGLES, idx.size(), GL_UNSIGNED_INT, 0);
 			};
 
-			// glDrawElements(GL_TRIANGLES, Vertex.idx.size() - 36, GL_UNSIGNED_INT, 36);
-			// glUniform1f(u_time2, time + 9);
-			// trans = glm::translate(Identity, glm::vec3(0.5, 0.0, 0.0));
-			// trans = glm::rotate(trans, glm::radians(time * 50 + (float) (sin(time) * 20 + 30)), glm::vec3(0.5, 0.5, 0.5));
-			// trans = glm::scale(trans, glm::vec3(2,2,2));
-			// glUniformMatrix4fv(glGetUniformLocation(m_ShaderProgram, "u_trans"), 1, GL_FALSE, glm::value_ptr(trans));
-
-			// glDrawElements(GL_TRIANGLES, Vertex.idx.size(), GL_UNSIGNED_INT, 0);
                         // Gui->Run();
 			
 			SDL_GL_SwapWindow(m_WindowHandle);
 		};
         }
 
-        void Application::PollEvent(glm::mat4 *matrix) {
+        void Application::PollEvent(glm::vec3 &cameraPos, glm::vec3 &cameraFront, glm::vec3 &cameraUp, float &yaw, float &pitch) {
 		SDL_Event event;
-		float x = 0, y = 0, dx = 0, dy = 0;
+                int x = 0, y = 0, dx = 0, dy = 0;
+                float cameraSpeed = 3.5f * deltaTime;
+		const Uint8* keyStates = SDL_GetKeyboardState(NULL);
 		while (SDL_PollEvent(&event)) {
 			// ImGui_ImplSDL2_ProcessEvent(&event);
 			if (event.type == SDL_QUIT)
 				m_Running = false;
+                        if (event.type == SDL_MOUSEBUTTONDOWN)
+				if (event.button.button == SDL_BUTTON_LEFT)
+					SDL_SetRelativeMouseMode(SDL_GetRelativeMouseMode() == SDL_FALSE ? SDL_TRUE : SDL_FALSE);
 			if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE)
 				m_Running = false;
 			if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(m_WindowHandle))
@@ -289,21 +290,29 @@ namespace RT {
 				SDL_GetWindowSize(m_WindowHandle, &(m_Specification.Width), &(m_Specification.Height));
 				glViewport(0, 0, m_Specification.Width, m_Specification.Height);
                         };
-                        if (event.type == SDL_KEYDOWN) {
-				// x = dx, y = dy;
-				// dx += event.motion.y / 720.0f;
-                                // dy += event.motion.x / 720.0f;
-				// std::cout << "dx: " << dx << "dy: " << dy << std::endl;
-                                if (event.key.keysym.sym == SDLK_UP)
-					*matrix = glm::rotate(*matrix, glm::radians(-10.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-				else if (event.key.keysym.sym == SDLK_DOWN)
-					*matrix = glm::rotate(*matrix, glm::radians(10.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-				if (event.key.keysym.sym == SDLK_RIGHT)
-					*matrix = glm::rotate(*matrix, glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-				else if (event.key.keysym.sym == SDLK_LEFT)
-					*matrix = glm::rotate(*matrix, glm::radians(-10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-                        };
-		};
+                };
+
+                SDL_PumpEvents();
+
+		Uint32 mouseDelta = SDL_GetRelativeMouseState(&dx, &dy);
+		if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
+			yaw += 5.0f * dx * deltaTime;
+			pitch -= 5.0f * dy * deltaTime;
+		}
+			
+		if (keyStates[SDL_SCANCODE_W] >= 1)
+			cameraPos += cameraFront * cameraSpeed;
+		else if (keyStates[SDL_SCANCODE_S] >= 1)
+			cameraPos -= cameraFront * cameraSpeed;
+		if (keyStates[SDL_SCANCODE_D] >= 1)
+			cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+		else if (keyStates[SDL_SCANCODE_A] >= 1)
+			cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+
+		if(pitch > 89.0f)
+			pitch =  89.0f;
+		if(pitch < -89.0f)
+			pitch = -89.0f;
         }
 
         float Application::GetTime() {
