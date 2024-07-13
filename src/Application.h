@@ -10,9 +10,6 @@
 #include <SDL_events.h>
 #include <SDL_keycode.h>
 #include <SDL_opengl.h>
-#include "GUI.h"
-#include "imgui.h"
-// #include "Shader.h"
 
 extern bool g_ApplicationRunning;
 extern const char* glsl_version;
@@ -24,23 +21,23 @@ namespace RT {
 		int Height = 720;
         };
 	
-	const std::chrono::high_resolution_clock::time_point time_start = std::chrono::high_resolution_clock::now();
+	// const std::chrono::high_resolution_clock::time_point time_start = std::chrono::high_resolution_clock::now();
 
         class Application {
         private:
 		// typedef int VBOInt;
-		struct ImageData {
-			int width, height, nrChannels;
-			std::vector<unsigned int> texture;
-			unsigned char* data;
-		} Image;
+		// struct ImageData {
+		// 	int width, height, nrChannels;
+		// 	std::vector<unsigned int> texture;
+		// 	unsigned char* data;
+		// } Image;
 
-                struct Vertex {
-			glm::vec3 pos;
-			glm::vec2 uv;
-                };
-		std::vector<Vertex> vertices;
-		std::vector<GLuint> idx;
+                // struct Vertex {
+		// 	glm::vec3 pos;
+		// 	glm::vec2 uv;
+                // };
+		// std::vector<Vertex> vertices;
+		// std::vector<GLuint> idx;
         public:
 		Application(const ApplicationSpecification &applicationSpecification = ApplicationSpecification());
                 ~Application();
@@ -49,23 +46,16 @@ namespace RT {
                 void Shutdown();
                 void Run();
 
-		void PollEvent(glm::vec3 &cameraPos, glm::vec3 &cameraFront, glm::vec3 &cameraUp, float &yaw, float &pitch);
+		void PollEvent();
                 void KeyCallback();
                 void MouseButtonCallback();
 
-		float GetTime();
-
                 // void Render();
-		void GenCircle(float radius, int vertCount, std::vector<Vertex> &vertices);
-		void GenQuad(float scale, float width, float height, std::vector<Vertex> &vertices, float z = 0.0f);
-		void GenTri(float scale, float top, float right, float left, std::vector<Vertex> &vertices);
-		void GenCube(float scale, float width, float height, float length, std::vector<Vertex> &vertices);
-		void GenTexture(struct ImageData* imageData, std::string path, int index);
-		GLuint CreateShaderProgram(const char* vertex_file_path, const char* fragment_file_path);
-
-		// 		void GenCircle(float radius, int vertCount, std::vector<glm::vec3>* vertices, std::vector<glm::vec2>* uv = nullptr);
-		// void GenQuad(float scale, float width, float height, std::vector<glm::vec3>* vertices, std::vector<glm::vec2>* uv = nullptr);
-		// void GenTri(float scale, float top, float right, float left, std::vector<glm::vec3>* vertices, std::vector<glm::vec2>* uv = nullptr);
+		// void GenCircle(float radius, int vertCount, std::vector<Vertex> &vertices);
+		// void GenQuad(float scale, float width, float height, std::vector<Vertex> &vertices, float z = 0.0f);
+		// void GenTri(float scale, float top, float right, float left, std::vector<Vertex> &vertices);
+		// void GenCube(float scale, float width, float height, float length, std::vector<Vertex> &vertices);
+		// void GenTexture(struct ImageData* imageData, std::string path, int index);
 
 		// void SetMenubarCallback(const std::function<void()>& menubarCallback) { m_MenubarCallback = menubarCallback; }
 	private:
@@ -76,17 +66,13 @@ namespace RT {
 		
 		const glm::mat4 Identity = glm::mat4(1.0);
 		// Most of these fields should be moved to different classes
-                GLuint m_ShaderProgram;
-                // std::vector<glm::vec3> vertices;
-		// std::vector<glm::vec2> uv;
 		std::vector<GLuint> vao, vbo, eab;
-		// std::vector<GLuint> UVO;
 
 		bool m_Running = false;
 
 		float m_TimeStep = 0.0f;
 		float m_FrameTime = 0.0f;
-		float m_LastFrameTime = 0.0f;
+                float m_LastFrameTime = 0.0f;
 
                 std::function<void()> m_MenubarCallback;
         };

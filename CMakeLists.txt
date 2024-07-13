@@ -25,11 +25,17 @@ include_directories(${IMGUI_DIR} ${IMGUI_DIR}/backends)
 set(source
   src/main.cpp
   src/Application.cpp
+  src/Camera.cpp
+  src/Shader.cpp
   src/GUI.cpp)
 
 set(source_headers
   src/EntryPoint.h
   src/Application.h
+  src/Camera.h
+  src/Shader.h
+  src/Shape.h
+  src/Clock.h
   src/GUI.h)
 
 ### Build exe and link libraries 
