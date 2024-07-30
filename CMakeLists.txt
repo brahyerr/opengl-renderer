@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 # set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BINARY_DIR build)
-project(raytracer C CXX)
+project(opengl-renderer C CXX)
 
 ### Libraries
 find_package(SDL2 REQUIRED)
