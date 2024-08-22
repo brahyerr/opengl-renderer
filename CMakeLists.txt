@@ -26,6 +26,7 @@ set(source
   src/main.cpp
   src/Application.cpp
   src/Camera.cpp
+  src/Mesh.cpp
   src/Shader.cpp
   src/GUI.cpp)
 
@@ -33,8 +34,8 @@ set(source_headers
   src/EntryPoint.h
   src/Application.h
   src/Camera.h
+  src/Mesh.h
   src/Shader.h
-  src/Shape.h
   src/Clock.h
   src/GUI.h)
 

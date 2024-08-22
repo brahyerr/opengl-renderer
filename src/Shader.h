@@ -19,7 +19,9 @@ namespace RT {
 		void SetBoolUni(const char* name, const bool b) const; 
 		void SetIntUni(const char* name, const int i) const; 
 		void SetFloatUni(const char* name, const float f) const;
+                void SetVec3Uni(const char *name, const glm::vec3 &vec);
                 void SetMat4FUni(const char *name, const glm::mat4 &matrix);
+                void SetMat3FUni(const char *name, const glm::mat3 &matrix);
 
 		void Use();
                 void GenTexture(const std::string &path, int index);

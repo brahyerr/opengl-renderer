@@ -97,8 +97,14 @@ namespace RT {
         void Shader::SetFloatUni(const char *name, const float f) const {
 		glUniform1f(glGetUniformLocation(ID, name), f);
         } 
+	void Shader::SetVec3Uni(const char* name, const glm::vec3 &vec) {
+		glUniform3f(glGetUniformLocation(ID, name), vec.x, vec.y, vec.z);
+	}
 	void Shader::SetMat4FUni(const char* name, const glm::mat4 &matrix) {
 		glUniformMatrix4fv(glGetUniformLocation(ID, name), 1, GL_FALSE, glm::value_ptr(matrix));
+	}
+	void Shader::SetMat3FUni(const char* name, const glm::mat3 &matrix) {
+		glUniformMatrix3fv(glGetUniformLocation(ID, name), 1, GL_FALSE, glm::value_ptr(matrix));
 	}
 
         void Shader::GenTexture(const std::string &path, int index) {
@@ -117,7 +123,8 @@ namespace RT {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		
 		if (Image.data) {
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Image.width, Image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, Image.data);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, Image.width, Image.height, 0, GL_RGB, GL_UNSIGNED_BYTE, Image.data);
+			// glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, Image.width, Image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, Image.data);
                         glGenerateMipmap(GL_TEXTURE_2D);
                 } else {
 			std::cout << "Failed to load texture!" << std::endl;

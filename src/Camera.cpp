@@ -68,5 +68,9 @@ namespace RT {
 			Pitch = -89.0f;
 		// printf("yaw: %f, pitch: %f\n", Yaw, Pitch);
 		updateVectors();
+        }
+
+        void Camera::ProcessWheelInput(int y, float deltaTime) {
+		Zoom += 3.0f * y * deltaTime;
 	}
 }

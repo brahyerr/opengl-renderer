@@ -1,4 +1,5 @@
 #include <GL/glew.h>
+#include <SDL_blendmode.h>
 #include <SDL_events.h>
 #include <SDL_keyboard.h>
 #include <SDL_keycode.h>
@@ -6,6 +7,7 @@
 #include <SDL_opengl.h>
 #include <SDL_scancode.h>
 #include <SDL_shape.h>
+#include <SDL_timer.h>
 #include <SDL_video.h>
 #include <cmath>
 #include <cstddef>
@@ -28,10 +30,10 @@
 #include <vector>
 
 #define PI 3.14159265358979323846f
-#define EQ_TRI_RATIO 0.86602540
 
 #include "Clock.h"
-#include "Shape.h"
+// #include "Shape.h"
+#include "Mesh.h"
 
 #include "Application.h"
 #include "Camera.h"
@@ -44,7 +46,7 @@
 static RT::Application *s_Instance = nullptr;
 // static RT::GUI *s_Gui = nullptr;
 static RT::Camera *s_Camera = nullptr;
-static RT::Shader *s_Shader = nullptr;
+// static RT::Shader *s_Shader = nullptr;
 
 namespace RT {
 	// GUI m_Gui = nullptr;
@@ -150,16 +152,6 @@ namespace RT {
                 glClearColor(0.04f, 0.02f, 0.08f, 1.0f);
                 glClear(GL_COLOR_BUFFER_BIT);
 
-                #ifdef defined(WL_DIST) && defined(WL_PLATFORM_WINDOWS)
-		s_Shader = new Shader("shaders\\shader.vert", "shaders\\shader.frag");
-                s_Shader->GenTexture(&Image, "assets\\textures\\16xsi.png", 0);
-		#else
-		// GenTexture(&Image, "assets/textures/16xsi.png", 0);
-		s_Shader = new Shader("shaders/shader.vert", "shaders/shader.frag");
-		s_Shader->GenTexture("assets/textures/awesomeface.png", 0);
-		// s_Shader->GenTexture("assets/textures/500_yen_bicolor_clad_coin_obverse.jpg", 1);
-		#endif
-		
 		s_Camera = new Camera();
 
                 // s_Gui = new GUI(m_WindowHandle);
@@ -180,90 +172,162 @@ namespace RT {
 
 		// delete Gui;
 		delete s_Camera;
-		delete s_Shader;
 		g_ApplicationRunning = false;
         }
 
         void Application::Run() {
 		// TODO: Split gl function calls into proper classes
                 m_Running = true;
-		Shape::GenCube(0.5f, 1.0f, 1.0f, 1.0f);
-	        // glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex"), 0);
-                // glUniform1i(glGetUniformLocation(m_ShaderProgram, "u_tex2"), 1);
-                s_Shader->SetIntUni("u_tex", 0);
-		s_Shader->Use();
+		// Shape::GenCube(0.5f, 1.0f, 1.0f, 1.0f);
+		Cube cube = Cube();
+		Cube lightSource = Cube();
+		
+		cube.PopulateVertices(1.0f);
+                lightSource.PopulateIndexedVertices(0.25f);
 
-		// Gen/bind buffers/objects
-		vao.resize(1); vbo.resize(1);
+		Shader cubeShader = Shader("shaders/cubeShader.vert", "shaders/cubeShader.frag");
+		Shader lightSourceShader = Shader("shaders/lightSource.vert", "shaders/lightSource.frag");
+
+		cubeShader.GenTexture("assets/textures/16xsi.png", 0);
+                cubeShader.SetIntUni("u_tex", 0);
+
+		// Gen/bind buffers/objects - consider moving to a Scene class?
+                vao.resize(2);
+                vbo.resize(2);    // size 1 + 1 for light framebuffer
+		GLuint cubeLightVAO;
 		glGenVertexArrays(vao.size(), vao.data());
                 glGenBuffers(vbo.size(), vbo.data());
-		
+
+		// Pos
                 glBindVertexArray(vao[0]);
                 glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glBufferData(GL_ARRAY_BUFFER, Shape::Vertices.size() * sizeof(Shape::Vertex), Shape::Vertices.data(), GL_STATIC_DRAW);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Shape::Vertex), (void*)(0));
+		glBufferData(GL_ARRAY_BUFFER, cube.Vertices.size() * sizeof(Mesh::Vertex), cube.Vertices.data(), GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (void*)(0));
                 glEnableVertexAttribArray(0);
 
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Shape::Vertex), (void*)(sizeof(Shape::Vertex().pos)));
-		glEnableVertexAttribArray(1);
+		// // Normal
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (void*)(sizeof(Mesh::Vertex().pos)));
+                glEnableVertexAttribArray(1);
+
+		// UV
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (void*)(sizeof(Mesh::Vertex().pos) + sizeof(Mesh::Vertex().normal)));
+		glEnableVertexAttribArray(2);
+
+		// Bind buffer data for lighting shader here
+
                 // Element array buffer - This is bound automatically to the current vao, meaning a vao must be currently bound first
+		// eab.resize(2);
+                // glGenBuffers(eab.size(), eab.data());
+                // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eab[0]);
+		// glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(std::vector<GLuint>) * cube.Idx.size(), cube.Idx.data(), GL_STATIC_DRAW);
+
+		// lightSource.Use();
+		// Light VAO + VBO + EAB
+		// std::vector<GLuint> lightVAO;
+                // lightVAO.resize(1);
+		// glGenVertexArrays(1, &cubeLightVAO);
+                // glBindVertexArray(cubeLightVAO);
+		glBindVertexArray(vao[1]);
+                glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+		glBufferData(GL_ARRAY_BUFFER, lightSource.Vertices.size() * sizeof(Mesh::Vertex), lightSource.Vertices.data(), GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Mesh::Vertex), (void*)(0));
+                glEnableVertexAttribArray(0);
+
+                // glGenBuffers(eab.size(), eab.data());
 		eab.resize(1);
                 glGenBuffers(eab.size(), eab.data());
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eab[0]);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(std::vector<GLuint>) * Shape::Idx.size(), Shape::Idx.data(), GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(std::vector<GLuint>) * lightSource.Idx.size(), lightSource.Idx.data(), GL_STATIC_DRAW);
 		
 		// For reference
 		//                     Loc Size  Type    Normalize      Stride        Pos offset
 		// glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
                 glm::mat4 trans, model, view, projection;
+		glm::mat3 normal;
+		glm::vec3 cubeLightPos = glm::vec3(1.2f, 1.0f, -1.5f);
+		glm::vec3 lightColor = glm::vec3(1.0f, 0.9f, 0.9f);
 		trans = Identity;
 
                 // TODO: Properly calculate aspect ratio (move shader/gl stuff to shader class)
 		projection = glm::perspective(glm::radians(s_Camera->GetZoom()), 1.0f, 0.1f, 100.0f);
 
                 // Clones
-                std::array<glm::vec3, 10> cubeClones = {
-			glm::vec3( 0.0f,  0.0f,  0.0f),
-			glm::vec3( 2.0f,  5.0f, -15.0f),
-			glm::vec3(-1.5f, -2.2f, -2.5f),
-			glm::vec3(-3.8f, -2.0f, -12.3f), 
-			glm::vec3( 2.4f, -0.4f, -3.5f),
-			glm::vec3(-1.7f,  3.0f, -7.5f), 
-			glm::vec3( 1.3f, -2.0f, -2.5f), 
-			glm::vec3( 1.5f,  2.0f, -2.5f),
-			glm::vec3( 1.5f,  0.2f, -1.5f),
-			glm::vec3(-1.3f,  1.0f, -1.5f)
-		};
+                // std::array<glm::vec3, 10> cubeClones = {
+		// 	glm::vec3( 0.0f,  0.0f,  0.0f),
+		// 	glm::vec3( 2.0f,  5.0f, -15.0f),
+		// 	glm::vec3(-1.5f, -2.2f, -2.5f),
+		// 	glm::vec3(-3.8f, -2.0f, -12.3f), 
+		// 	glm::vec3( 2.4f, -0.4f, -3.5f),
+		// 	glm::vec3(-1.7f,  3.0f, -7.5f), 
+		// 	glm::vec3( 1.3f, -2.0f, -2.5f), 
+		// 	glm::vec3( 1.5f,  2.0f, -2.5f),
+		// 	glm::vec3( 1.5f,  0.2f, -1.5f),
+		// 	glm::vec3(-1.3f,  1.0f, -1.5f)
+		// };
 
-                float angle;
+                // float angle;
+		model = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0f, 0.0f, -0.5f));
+		model = glm::translate(model, glm::vec3(0.0f, 0.0f, -3.0f));
+		normal = glm::mat3(glm::transpose(glm::inverse(model)));
+		glm::mat4 cubeLightModel = glm::translate(model, cubeLightPos);
+		
                 while (m_Running) {
-                  // glEnable(GL_DEBUG_OUTPUT);
+			// glEnable(GL_DEBUG_OUTPUT);
                         PollEvent();
 			view = s_Camera->GetViewMatrix();
+			projection = glm::perspective(glm::radians(s_Camera->GetZoom()), 1.0f, 0.1f, 100.0f);
 
 			glEnable(GL_DEPTH_TEST);
                         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glActiveTexture(GL_TEXTURE0);
 			// glBindTexture(GL_TEXTURE_2D, Image.texture[0]);
-			// s_Shader->BindTexture(GL_TEXTURE_2D, 0);
+			// cubeShader.BindTexture(GL_TEXTURE_2D, 0);
+			
+                        // !!! Remember to bind used objects and shaders before setting uniforms and drawing !!!
 			
 			float time = Clock::GetTime();
-			s_Shader->SetFloatUni("u_time", time);
-			s_Shader->SetFloatUni("u_time2", time);
+			cubeShader.Use();
+			cubeShader.SetFloatUni("u_time", time);
+			cubeShader.SetFloatUni("u_time2", time);
+			cubeShader.SetMat4FUni("u_model", model);
+			cubeShader.SetMat4FUni("u_view", view);
+			cubeShader.SetMat4FUni("u_projection", projection);
+			cubeShader.SetMat3FUni("u_normal", normal);
+			cubeShader.SetVec3Uni("u_lightColor", lightColor);
+			cubeShader.SetVec3Uni("u_objectColor", glm::vec3(0.6f, 1.0f, 0.7f));
+			cubeShader.SetVec3Uni("u_lightSourcePos", cubeLightPos);
+			
+			// glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+			// glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eab[0]);
+                        glBindVertexArray(vao[0]);
+			glDrawArrays(GL_TRIANGLES, 0, cube.Vertices.size());
+			
+			lightSourceShader.Use();
+			lightSourceShader.SetMat4FUni("u_model", cubeLightModel);
+			lightSourceShader.SetMat4FUni("u_view", view);
+			lightSourceShader.SetMat4FUni("u_projection", projection);
 
-			model = glm::rotate(trans, glm::radians(0.0f), glm::vec3(0.0, 0.0, -0.5));
-                        for (int i = 0; i < 10; i++) {
-				model = glm::rotate(trans, 0.0f, glm::vec3(1.0f, 1.0f, 1.0f));
-                                model = glm::translate(model, cubeClones[i]);
-				angle = 20.0f * i;
-				model = glm::rotate(model, angle, glm::vec3(1.0f, 1.0f, 0.0f));
-				s_Shader->SetMat4FUni("u_model", model);
-				s_Shader->SetMat4FUni("u_view", view);
-				s_Shader->SetMat4FUni("u_projection", projection);
+			// glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+			// glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eab[0]);
+			glBindVertexArray(vao[1]);
+			glDrawElements(GL_TRIANGLES, lightSource.Idx.size(), GL_UNSIGNED_INT, 0);
+			
+			// glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);  // wireframe mode
+			
+                        // for (int i = 0; i < 10; i++) {
+			// 	model = glm::rotate(trans, 0.0f, glm::vec3(1.0f, 1.0f, 1.0f));
+                        //         model = glm::translate(model, cubeClones[i]);
+			// 	angle = 20.0f * i;
+			// 	model = glm::rotate(model, angle, glm::vec3(1.0f, 1.0f, 0.0f));
+			// 	s_Shader->SetMat4FUni("u_model", model);
+			// 	s_Shader->SetMat4FUni("u_view", view);
+			// 	s_Shader->SetMat4FUni("u_projection", projection);
 				
-				glDrawElements(GL_TRIANGLES, Shape::Idx.size(), GL_UNSIGNED_INT, 0);
-			};
+			// 	glDrawElements(GL_TRIANGLES, Mesh::Idx.size(), GL_UNSIGNED_INT, 0);
+			// 	// glDrawArrays(GL_TRIANGLES, 0, Vertices.size());
+				// glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);  // wireframe mode
+			// };
 
                         // Gui->Run();
 			
@@ -272,10 +336,12 @@ namespace RT {
         }
 
         void Application::PollEvent() {
+		// SDL_GetTicks64();
 		Clock::UpdateDeltaTime();
 		float deltaTime = Clock::GetDeltaTime();
 		SDL_Event event;
                 int x = 0, y = 0, dx = 0, dy = 0;
+		Uint32 relativeMouseState;
 		const Uint8* keyStates = SDL_GetKeyboardState(NULL);
 		while (SDL_PollEvent(&event)) {
 			// ImGui_ImplSDL2_ProcessEvent(&event);
@@ -296,8 +362,9 @@ namespace RT {
 
                 SDL_PumpEvents();
 
-		Uint32 mouseDelta = SDL_GetRelativeMouseState(&dx, &dy);
+		relativeMouseState = SDL_GetRelativeMouseState(&dx, &dy);
 		if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
+			// printf("relativeMouseState: %u\n", mouseDelta);
 			s_Camera->ProcessMouseInput(dx, dy, deltaTime);
 		}
 		
@@ -309,5 +376,7 @@ namespace RT {
 			s_Camera->ProcessKeyInput(RIGHT, deltaTime);
 		else if (keyStates[SDL_SCANCODE_A] >= 1)
 			s_Camera->ProcessKeyInput(LEFT, deltaTime);
+		
+		// Could sum up events into a bitmask instead of if branches for poll event?
         }
 }

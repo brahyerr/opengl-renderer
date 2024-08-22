@@ -20,7 +20,7 @@ namespace RT {
 	const float YAW = -90.0f;
 	const float PITCH = 0.0f;
 	const float SPEED = 2.5f;
-	const float SENSITIVITY = 2.0f;
+	const float SENSITIVITY = 3.5f;
 	const float ZOOM = -45.0f;
 
 	class Camera {
@@ -38,6 +38,7 @@ namespace RT {
 		void updateVectors();
 		void ProcessKeyInput(Camera_Movement direction, float deltaTime);
 		void ProcessMouseInput(int x, int y, float deltaTime);
+		void ProcessWheelInput(int y, float deltaTime);
 		void SetZoom(float zoom);
 		
 		float GetZoom();
